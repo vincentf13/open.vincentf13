@@ -3,6 +3,7 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.Order;
@@ -24,14 +25,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OrderProcessor implements OrderBook.TradeFinalizer {
 
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> orders = Storage.self().orders();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeOrdersDiskMap = Storage.self().activeOrders();
+    private final ChronicleMap<LongValue, Order> orders = Storage.self().orders();
+    private final ChronicleMap<LongValue, Boolean> activeOrdersDiskMap = Storage.self().activeOrders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
     private final IdempotencyGuard idempotencyGuard = new IdempotencyGuard();
 
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableOrderKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final LongValue reusableOrderKey = new LongValue();
     private final Order reusableDiskOrder = new Order();
 
     // ========== 公開 API ==========
@@ -58,7 +59,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 idempotencyGuard.record(order.getUserId(), order.getClientOrderId(), order.getOrderId());
             }
             if (!order.isTerminal()) {
-                activeOrdersDiskMap.put(new open.vincentf13.service.spot.infra.chronicle.LongValue(order.getOrderId()), Boolean.TRUE);
+                activeOrdersDiskMap.put(new LongValue(order.getOrderId()), Boolean.TRUE);
                 OrderBook.get(order.getSymbolId()).recoverOrder(order);
             }
         });

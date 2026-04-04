@@ -49,8 +49,7 @@ public class WalWriter extends Worker {
 
     @Override
     protected void onStart() {
-        // NUMA 感知預熱：在已綁定 CPU 的 worker 線程上執行，確保頁面分配在正確的 NUMA 節點
-        PreTouchUtil.touchDirectory(new java.io.File(open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum.WAL_BASE_DIR));
+        PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.WAL_BASE_DIR));
         this.appender = wal.acquireAppender();
         log.info("[WAL-WRITER] 初始化完成，BinaryWire 格式寫入");
     }

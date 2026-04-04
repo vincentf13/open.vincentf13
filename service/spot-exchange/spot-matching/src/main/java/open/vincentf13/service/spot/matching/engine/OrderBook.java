@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
@@ -54,9 +55,9 @@ public class OrderBook {
     private final int symbolId, baseAssetId, quoteAssetId;
 
     // 磁碟映射
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Order> ordersDisk = Storage.self().orders();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Boolean> activeDisk = Storage.self().activeOrders();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, Trade> tradesDisk = Storage.self().trades();
+    private final ChronicleMap<LongValue, Order> ordersDisk = Storage.self().orders();
+    private final ChronicleMap<LongValue, Boolean> activeDisk = Storage.self().activeOrders();
+    private final ChronicleMap<LongValue, Trade> tradesDisk = Storage.self().trades();
 
     // 批次寫入緩衝
     private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(16384, 0.5f);
@@ -72,12 +73,14 @@ public class OrderBook {
     private final Long2ObjectHashMap<LongHashSet> userOrdersIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
     // Flush 用可重用 Key
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue kO = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue kT = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue kA = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final LongValue kO = new LongValue();
+    private final LongValue kT = new LongValue();
+    private final LongValue kA = new LongValue();
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
-        this.symbolId = symbolId; this.baseAssetId = baseAssetId; this.quoteAssetId = quoteAssetId;
+        this.symbolId = symbolId;
+        this.baseAssetId = baseAssetId;
+        this.quoteAssetId = quoteAssetId;
     }
 
     // ========== 撮合核心 ==========
@@ -220,15 +223,29 @@ public class OrderBook {
 
     public void flush() {
         if (!pendingOrders.isEmpty()) {
-            pendingOrders.forEach((id, o) -> { kO.set(id); ordersDisk.put(kO, o); if (o.getStatus() >= 2) MatchingPool.releaseOrder(o); });
+            pendingOrders.forEach((id, o) -> {
+                kO.set(id);
+                ordersDisk.put(kO, o);
+                if (o.isTerminal()) MatchingPool.releaseOrder(o);
+            });
             pendingOrders.clear();
         }
         if (!pendingTrades.isEmpty()) {
-            pendingTrades.forEach((id, t) -> { kT.set(id); tradesDisk.put(kT, t); MatchingPool.releaseTrade(t); });
+            pendingTrades.forEach((id, t) -> {
+                kT.set(id);
+                tradesDisk.put(kT, t);
+                MatchingPool.releaseTrade(t);
+            });
             pendingTrades.clear();
         }
-        if (!pendingAdds.isEmpty()) { pendingAdds.forEach(id -> { kA.set(id); activeDisk.put(kA, Boolean.TRUE); }); pendingAdds.clear(); }
-        if (!pendingRemovals.isEmpty()) { pendingRemovals.forEach(id -> { kA.set(id); activeDisk.remove(kA); }); pendingRemovals.clear(); }
+        if (!pendingAdds.isEmpty()) {
+            pendingAdds.forEach(id -> { kA.set(id); activeDisk.put(kA, Boolean.TRUE); });
+            pendingAdds.clear();
+        }
+        if (!pendingRemovals.isEmpty()) {
+            pendingRemovals.forEach(id -> { kA.set(id); activeDisk.remove(kA); });
+            pendingRemovals.clear();
+        }
     }
 
     // ========== Accessors ==========

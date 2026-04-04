@@ -55,8 +55,7 @@ public class AeronReceiver extends Worker {
 
     @Override
     protected void onStart() {
-        // NUMA 感知預熱：matching worker 綁核後觸碰 Chronicle Map 頁面，確保分配在本地 NUMA 節點
-        PreTouchUtil.touchDirectory(new java.io.File(open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum.DEFAULT_BASE_DIR));
+        PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.DEFAULT_BASE_DIR));
         engine.onStart();
         subscription = AeronClientHolder.aeron().addSubscription(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
         controlPub = AeronClientHolder.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);

@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.Balance;
@@ -25,7 +26,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @Service
 public class Ledger {
     private final ChronicleMap<BalanceKey, Balance> balancesDiskMap = Storage.self().balances();
-    private final ChronicleMap<open.vincentf13.service.spot.infra.chronicle.LongValue, open.vincentf13.service.spot.infra.chronicle.LongValue> userAssetBitmaskDiskMap = Storage.self().userAssets();
+    private final ChronicleMap<LongValue, LongValue> userAssetBitmaskDiskMap = Storage.self().userAssets();
 
     // 二級緩存：徹底消除 BalanceKey 對象分配與磁碟讀取
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
@@ -39,8 +40,8 @@ public class Ledger {
 
     private final BalanceKey reusableKey = new BalanceKey();
     private final Balance reusableDiskBalance = new Balance(); // getUsing() 享元，避免 ChronicleMap.get() 分配
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskKey = new open.vincentf13.service.spot.infra.chronicle.LongValue();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue flushMaskValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final LongValue flushMaskKey = new LongValue();
+    private final LongValue flushMaskValue = new LongValue();
 
     @PostConstruct
     public void init() {
@@ -253,8 +254,12 @@ public class Ledger {
                 }
             }
         });
-        bitmaskCache.forEach((k, v) -> userAssetBitmaskDiskMap.put(new open.vincentf13.service.spot.infra.chronicle.LongValue(k), new open.vincentf13.service.spot.infra.chronicle.LongValue(v)));
-        log.info("✅ Ledger 預熱完成，緩存帳戶數: {}", balanceCache.size());
+        bitmaskCache.forEach((k, v) -> {
+            flushMaskKey.set(k);
+            flushMaskValue.set(v);
+            userAssetBitmaskDiskMap.put(flushMaskKey, flushMaskValue);
+        });
+        log.info("Ledger 預熱完��，緩存帳戶數: {}", balanceCache.size());
     }
 
     public boolean hasAsset(long userId, int assetId) {
@@ -275,7 +280,7 @@ public class Ledger {
                 throw new IllegalStateException("Negative balance cache state for key=" + combinedKey);
             }
             long userId = combinedKey >>> 32;
-            int assetId = (int)(long) combinedKey;
+            int assetId = (int) (long) combinedKey;
             if ((balance.getAvailable() > 0 || balance.getFrozen() > 0) && assetId >= 0 && assetId < 64) {
                 expectedMasks.merge(userId, 1L << assetId, (l, r) -> l | r);
             }

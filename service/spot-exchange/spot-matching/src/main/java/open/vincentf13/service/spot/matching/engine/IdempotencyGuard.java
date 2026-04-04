@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.CidKey;
 
@@ -18,9 +19,9 @@ public class IdempotencyGuard {
     private final long[] pendingOids = new long[BUFFER_SIZE];
     private int count = 0;
 
-    private final ChronicleMap<CidKey, open.vincentf13.service.spot.infra.chronicle.LongValue> diskMap = Storage.self().clientOrderIdMap();
+    private final ChronicleMap<CidKey, LongValue> diskMap = Storage.self().clientOrderIdMap();
     private final CidKey reusableKey = new CidKey();
-    private final open.vincentf13.service.spot.infra.chronicle.LongValue reusableValue = new open.vincentf13.service.spot.infra.chronicle.LongValue();
+    private final LongValue reusableValue = new LongValue();
 
     /** 檢查是否為重複指令 (先查緩衝，再查磁碟) */
     public boolean isDuplicate(long userId, long clientOrderId) {
