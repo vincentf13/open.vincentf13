@@ -195,7 +195,7 @@ public class OrderBook {
         if (set != null) { set.remove(o.getOrderId()); if (set.isEmpty()) userOrdersIndex.remove(o.getUserId()); }
     }
 
-    public void syncOrder(Order o, long gwSeq) {
+    private void syncOrder(Order o, long gwSeq) {
         if (o.getStatus() != OrderStatus.CANCELED.value()) {
             o.setStatus((byte) (o.remainingQty() == 0
                     ? OrderStatus.FILLED.value()
