@@ -39,6 +39,11 @@ public class BenchmarkTool {
     private static final Histogram histogram = new Histogram(TimeUnit.SECONDS.toNanos(10), 3);
     private static final AtomicLong sentCount = new AtomicLong();
     private static final AtomicLong recvCount = new AtomicLong();
+    private static final AtomicLong acceptedCount = new AtomicLong();
+    private static final AtomicLong rejectedCount = new AtomicLong();
+    private static final AtomicLong matchedCount = new AtomicLong();
+    private static final AtomicLong canceledCount = new AtomicLong();
+    private static final AtomicLong unknownCount = new AtomicLong();
     private static volatile boolean measuring = false;
 
     public static void main(String[] args) throws Exception {
@@ -140,10 +145,11 @@ public class BenchmarkTool {
 
     private static void printResults() {
         System.out.println("\n=== Benchmark Results ===");
-        System.out.printf("Sent: %d, Received: %d (%.1f%%)%n",
-                sentCount.get(), recvCount.get(),
-                sentCount.get() > 0 ? recvCount.get() * 100.0 / sentCount.get() : 0);
-        System.out.printf("Throughput: %d orders/sec%n", sentCount.get() / Math.max(durationSec, 1));
+        System.out.printf("Sent: %,d | Throughput: %,d orders/sec%n", sentCount.get(), sentCount.get() / Math.max(durationSec, 1));
+        System.out.printf("Reports: accepted=%,d, matched=%,d, rejected=%,d, canceled=%,d, unknown=%,d%n",
+                acceptedCount.get(), matchedCount.get(), rejectedCount.get(), canceledCount.get(), unknownCount.get());
+        System.out.printf("Latency samples (measuring phase): %,d (%.1f%% of sent)%n",
+                recvCount.get(), sentCount.get() > 0 ? recvCount.get() * 100.0 / sentCount.get() : 0);
         if (histogram.getTotalCount() == 0) {
             System.out.println("\nNo latency samples (no reports received)");
             return;
@@ -239,11 +245,29 @@ public class BenchmarkTool {
 
             if (msg instanceof BinaryWebSocketFrame frame) {
                 ByteBuf content = frame.content();
-                if (!measuring || content.readableBytes() < 20) return;
+                if (content.readableBytes() < 20) return;
 
                 int msgType = content.getIntLE(0);
-                long clientOrderId = extractClientOrderId(msgType, content);
 
+                // 統計回報類型
+                switch (msgType) {
+                    case 201 -> acceptedCount.incrementAndGet();
+                    case 202 -> {
+                        rejectedCount.incrementAndGet();
+                        long cid = content.readableBytes() >= 44 ? content.getLongLE(36) : 0;
+                        System.err.printf("[REJECTED] clientOrderId=%d%n", cid);
+                    }
+                    case 203 -> canceledCount.incrementAndGet();
+                    case 204 -> matchedCount.incrementAndGet();
+                    default -> {
+                        unknownCount.incrementAndGet();
+                        System.err.printf("[UNKNOWN REPORT] msgType=%d, len=%d%n", msgType, content.readableBytes());
+                    }
+                }
+
+                if (!measuring) return;
+
+                long clientOrderId = extractClientOrderId(msgType, content);
                 if (clientOrderId > 0) {
                     long roundTrip = System.nanoTime() - clientOrderId;
                     if (roundTrip > 0 && roundTrip < TimeUnit.SECONDS.toNanos(10)) {
