@@ -158,6 +158,7 @@ public class Constants {
         public static final long CPU_ID_CURRENT_NETTY_WORKER_1 = 1015L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_2 = 1016L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_3 = 1017L;
+        public static final long CPU_ID_CURRENT_WAL_WRITER = 1019L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_4 = 1018L;
 
         // JVM 與 CPU 指標
@@ -168,6 +169,7 @@ public class Constants {
         public static final long GATEWAY_JVM_USED_MB = 210L;
         public static final long GATEWAY_JVM_MAX_MB = 211L;
         public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = 212L;
+        public static final long GATEWAY_WAL_WRITER_DUTY_CYCLE = 213L;
 
         // GC 監控指標
         public static final long MATCHING_GC_COUNT = 300L;

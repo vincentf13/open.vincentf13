@@ -33,6 +33,7 @@
         <chronicle.queue.version>5.25ea12</chronicle.queue.version>
         <chronicle.map.version>3.25ea5</chronicle.map.version>
         <aeron.version>1.44.0</aeron.version>
+        <disruptor.version>4.0.0</disruptor.version>
     </properties>
 
     <dependencyManagement>
@@ -66,6 +67,11 @@
                 <groupId>io.aeron</groupId>
                 <artifactId>aeron-all</artifactId>
                 <version>${aeron.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

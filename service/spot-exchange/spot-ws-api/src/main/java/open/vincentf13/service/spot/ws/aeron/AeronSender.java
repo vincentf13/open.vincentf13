@@ -1,6 +1,5 @@
 package open.vincentf13.service.spot.ws.aeron;
 
-import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
@@ -9,21 +8,30 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
-import net.openhft.chronicle.wire.WireIn;
+import net.openhft.chronicle.wire.Wire;
 import open.vincentf13.service.spot.infra.aeron.*;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
-import open.vincentf13.service.spot.infra.alloc.OffHeapUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.chronicle.WalField;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
+import open.vincentf13.service.spot.sbe.*;
+import org.agrona.MutableDirectBuffer;
 import org.springframework.stereotype.Component;
+
+import java.nio.ByteOrder;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 import static open.vincentf13.service.spot.infra.aeron.AeronUtil.*;
-import static org.agrona.UnsafeAccess.UNSAFE;
 
-/** 網關 Aeron 發送器 (極簡扁平化版) */
+/**
+ * 網關 Aeron 發送器
+ *
+ * 從 Chronicle Queue 讀取 BinaryWire 結構欄位，
+ * 以 SBE 編碼組裝 Aeron 訊息 (32-byte header + SBE body)，
+ * 直接寫入 Aeron claim buffer，達成單次拷貝。
+ */
 @Slf4j
 @Component
 public class AeronSender extends Worker {
@@ -35,7 +43,14 @@ public class AeronSender extends Worker {
     private long localBackPressure = 0;
     private long resumeSkipIndex = Long.MIN_VALUE;
 
-    public AeronSender(Aeron aeron) {
+    // SBE 編碼器 (單線程獨佔，無需 ThreadLocal)
+    private final MessageHeaderEncoder sbeHeaderEncoder = new MessageHeaderEncoder();
+    private final OrderCreateEncoder orderCreateEncoder = new OrderCreateEncoder();
+    private final OrderCancelEncoder orderCancelEncoder = new OrderCancelEncoder();
+    private final DepositEncoder depositEncoder = new DepositEncoder();
+    private final AuthEncoder authEncoder = new AuthEncoder();
+
+    public AeronSender() {
         super("gw-sender", MetricsKey.CPU_ID_AERON_SENDER, MetricsKey.CPU_ID_CURRENT_AERON_SENDER, MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE);
         this.wal = Storage.self().gatewaySenderWal();
     }
@@ -52,24 +67,22 @@ public class AeronSender extends Worker {
 
     @Override
     protected int doWork() {
-        // 1. 鏈路狀態檢查 (發送端需偵測連線是否中斷)
         if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
 
-        // 2. 處理握手 (Resume)
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
         if (currentState == AeronState.WAITING) return work;
 
-        // 3. 轉發 WAL 消息 (從 Chronicle Queue 讀取並透過 Aeron 發送)
-        // 優化：手動管理 DocumentContext，減少 try-with-resources 頻率
         for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
             try (var dc = tailer.readingDocument()) {
                 if (!dc.isPresent()) break;
 
-                long seq = dc.index();
-                // 跳過 Resume 重定位後重複的已處理條目，避免 Receiver 拒絕並停留在 WAITING
-                if (seq == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
+                long walIndex = dc.index();
+                if (walIndex == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
 
-                if (!trySend(dc.wire(), seq)) break;
+                Wire wire = dc.wire();
+                if (wire == null) break;
+
+                if (!readAndSend(wire, walIndex)) break;
 
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
@@ -79,56 +92,91 @@ public class AeronSender extends Worker {
     }
 
     /**
-     * 嘗試將單筆 WAL 消息發送至 Aeron 通道。
-     * 職責：封裝 Unsafe 零拷貝邏輯與發送失敗後的重試/降級行為。
+     * 從 BinaryWire 讀取結構欄位，以 SBE 編碼直接寫入 Aeron claim buffer。
+     *
+     * Aeron 訊息格式 (與 Matching Engine 的 CommandRouter 對齊)：
+     * [0-3] MsgType | [4-7] Pad | [8-15] Seq | [16-23] GwTime | [24-31] SBE Header | [32+] SBE Body
      */
-    private boolean trySend(WireIn wire, long seq) {
-        final net.openhft.chronicle.bytes.Bytes<?> bytes = wire.bytes();
-        final int len = (int) bytes.readRemaining();
-        if (len <= 0) return true;
+    private boolean readAndSend(Wire wire, long walIndex) {
+        int msgType   = wire.read(WalField.msgType).int32();
+        long gwTime   = wire.read(WalField.gwTime).int64();
+        long userId   = wire.read(WalField.userId).int64();
+        long ts       = wire.read(WalField.timestamp).int64();
 
-        // 直接獲取 Chronicle 消息的堆外記憶體地址
-        final long addr = bytes.addressForRead(bytes.readPosition());
-        
+        return switch (msgType) {
+            case MsgType.ORDER_CREATE -> {
+                int symbolId   = wire.read(WalField.symbolId).int32();
+                long price     = wire.read(WalField.price).int64();
+                long qty       = wire.read(WalField.qty).int64();
+                byte side      = wire.read(WalField.side).int8();
+                long cid       = wire.read(WalField.clientOrderId).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).symbolId(symbolId)
+                        .price(price).qty(qty).side(Side.get((short)(side & 0xFF))).clientOrderId(cid));
+            }
+            case MsgType.ORDER_CANCEL -> {
+                long orderId = wire.read(WalField.orderId).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).orderId(orderId));
+            }
+            case MsgType.DEPOSIT -> {
+                int assetId  = wire.read(WalField.assetId).int32();
+                long amount  = wire.read(WalField.amount).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).assetId(assetId).amount(amount));
+            }
+            case MsgType.AUTH -> {
+                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId));
+            }
+            default -> true; // 跳過未知類型
+        };
+    }
+
+    /**
+     * 組裝 32-byte header + SBE body 並透過 Aeron claim 模式發送。
+     * bodyFiller 負責寫入 SBE header (offset 24) 與 body (offset 32+)。
+     */
+    private boolean trySendSbe(int msgType, int totalLen, long walIndex, long gwTime, AeronUtil.AeronHandler bodyFiller) {
         while (running.get()) {
-            // 透過 Aeron Claim 模式發送
-            int res = AeronUtil.send(publication, len, (buf, off) -> {
-                // 使用 Unsafe 直接從 Chronicle WAL 位址拷貝數據至 Aeron 緩衝區 (Zero Copy)
-                UNSAFE.copyMemory(addr, OffHeapUtil.getAddress(buf, off), len);
-                // 覆寫消息內部的序號欄位 (強制偏移量 8，確保對齊)
-                buf.putLong(off + 8, seq, java.nio.ByteOrder.LITTLE_ENDIAN);
+            int res = AeronUtil.send(publication, totalLen, (buf, off) -> {
+                buf.putInt(off + AbstractSbeModel.TYPE_OFFSET, msgType, ByteOrder.LITTLE_ENDIAN);
+                buf.putInt(off + 4, 0, ByteOrder.LITTLE_ENDIAN); // padding
+                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, walIndex, ByteOrder.LITTLE_ENDIAN);
+                buf.putLong(off + AbstractSbeModel.GATEWAY_TIME_OFFSET, gwTime, ByteOrder.LITTLE_ENDIAN);
+                bodyFiller.onFill(buf, off);
             });
 
-            // 成功：跳過已發送字節並結束重試
-            if (res == SEND_OK) { 
-                if (seq == 1) log.info("成功發送第一條消息 (seq=1)");
-                bytes.readSkip(len); return true; 
-            } 
-            
-            // 背壓：記錄指標，提示 CPU 執行 spin 等待，並繼續重試
-            if (res == SEND_BACKPRESSURE) { 
-                localBackPressure++; Thread.onSpinWait(); continue; 
-            } 
-            
-            // 鏈路斷開：將狀態切換回 WAITING，等待接收端重新 Resume
+            if (res == SEND_OK) {
+                if (walIndex == 1) log.info("成功發送第一條消息 (seq=1)");
+                return true;
+            }
+            if (res == SEND_BACKPRESSURE) { localBackPressure++; Thread.onSpinWait(); continue; }
             if (res == SEND_DISCONNECTED) {
                 log.warn("AeronSender 鏈路斷開，暫停發送。");
-                currentState = AeronState.WAITING; 
+                currentState = AeronState.WAITING;
             }
-            break; 
+            return false;
         }
         return false;
     }
 
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
-        if (buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
-            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, java.nio.ByteOrder.LITTLE_ENDIAN);
-            log.info("✅ AeronSender 握手成功！恢復位點: {}", walIndex);
+        if (buffer.getInt(offset, ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
+            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, ByteOrder.LITTLE_ENDIAN);
+            log.info("AeronSender 握手成功，恢復位點: {}", walIndex);
             if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) {
                 tailer.toStart();
                 resumeSkipIndex = Long.MIN_VALUE;
             } else {
-                // moveToIndex 定位到最後已處理條目，批次首條需跳過（Receiver 端 seq==last 會拒絕）
                 resumeSkipIndex = walIndex;
             }
             currentState = AeronState.SENDING;

@@ -1,36 +1,42 @@
 package open.vincentf13.service.spot.ws.ws;
 
+import com.lmax.disruptor.InsufficientCapacityException;
+import com.lmax.disruptor.RingBuffer;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.bytes.PointerBytesStore;
-import net.openhft.chronicle.queue.ChronicleQueue;
-import open.vincentf13.service.spot.infra.thread.ThreadContext;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
+import open.vincentf13.service.spot.sbe.*;
+import open.vincentf13.service.spot.ws.wal.WalEvent;
 import org.springframework.stereotype.Component;
 
-import java.nio.ByteOrder;
 import static open.vincentf13.service.spot.infra.Constants.*;
 
-/** 
- * 網關 WebSocket 指令處理器 (極簡 Micrometer 版)
+/**
+ * 網關 WebSocket 指令處理器
+ *
+ * Netty worker 解碼 SBE → 填入 WalEvent 結構欄位 → CAS 投遞 Disruptor RingBuffer。
+ * SBE 欄位偏移來自 generated encoder，確保 schema 變更時自動同步。
  */
 @Slf4j
 @Component
 @ChannelHandler.Sharable
 public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryWebSocketFrame> {
+    /** 客戶端幀的自訂標頭長度 (msgType 4 + padding 8 + sbeHeader 8 = 20) */
     private static final int OLD_HEADER_SIZE = 20;
     private static final int MIN_COMMAND_LENGTH = OLD_HEADER_SIZE;
-    private static final int MIN_AUTH_LENGTH = 36;
+    /** SBE body 在客戶端幀中的起始偏移 (= OLD_HEADER_SIZE) */
+    private static final int SBE_BODY_START = OLD_HEADER_SIZE;
 
-    private final ChronicleQueue wal = Storage.self().gatewaySenderWal();
+    private final RingBuffer<WalEvent> ringBuffer;
     private final WsSessionManager sessionManager;
 
-    public WsCommandInboundHandler(WsSessionManager sessionManager) {
+    public WsCommandInboundHandler(RingBuffer<WalEvent> ringBuffer, WsSessionManager sessionManager) {
+        this.ringBuffer = ringBuffer;
         this.sessionManager = sessionManager;
     }
 
@@ -39,68 +45,74 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
         final long arrivalTimeNs = System.nanoTime();
         StaticMetricsHolder.addCounter(MetricsKey.NETTY_RECV_COUNT, 1);
 
-        io.netty.buffer.ByteBuf content = frame.content();
+        ByteBuf content = frame.content();
         int length = content.readableBytes();
         if (length < MIN_COMMAND_LENGTH) return;
 
-        // 提取舊版 Header (20 bytes) 中的 UserId
-        Long authenticatedUserId = extractAuthUserId(ctx, content, length);
+        int ri = content.readerIndex();
+        int msgType = content.getIntLE(ri);
+        Long existingUserId = ctx.channel().attr(WsSessionManager.USER_ID_KEY).get();
 
-        final ThreadContext context = ThreadContext.get();
-        // 提前讀取 ByteBuf 欄位（Netty 保證 frame 在此方法內有效）
-        final int msgType = content.getIntLE(content.readerIndex());
-        final long sbeHeader = content.getLongLE(content.readerIndex() + 12);
-        final int bodyLen = length - OLD_HEADER_SIZE;
-
-        // synchronized 確保單一 DocumentContext 開啟，消除 Chronicle Queue hole。
-        // acquireAppender() 在鎖內呼叫：每個 thread 取得自己的 appender（Chronicle thread-local），
-        // 鎖防止多個 appender 同時持有開啟的 DocumentContext，從而杜絕 tailer 命中 hole。
-        synchronized (wal) {
-            try (var dc = wal.acquireAppender().writingDocument()) {
-                if (dc.wire() == null) return;
-                net.openhft.chronicle.bytes.Bytes<?> target = dc.wire().bytes();
-
-                // 採用順序寫入 (Sequential Write)，不指定偏移量以防損壞 Wire Metadata
-                target.writeInt(msgType);                                 // [0-3] MsgType
-                target.writeInt(0);                                       // [4-7] Padding
-                target.writeLong(0L);                                     // [8-15] Seq
-                target.writeLong(arrivalTimeNs);                          // [16-23] GatewayTime
-                target.writeLong(sbeHeader);                              // [24-31] SBE Header
-
-                // 此時 Position 應自然位於 32，直接追加 Body
-                if (bodyLen > 0) {
-                    if (content.hasMemoryAddress()) {
-                        final PointerBytesStore pointer = context.getReusablePointer();
-                        pointer.set(content.memoryAddress() + content.readerIndex() + OLD_HEADER_SIZE, bodyLen);
-                        target.write(pointer);
-                    } else {
-                        byte[] scratch = new byte[bodyLen];
-                        content.getBytes(content.readerIndex() + OLD_HEADER_SIZE, scratch);
-                        target.write(scratch);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("[GATEWAY-WS] WAL 直寫失敗", e);
-            }
+        // CAS 搶佔 RingBuffer slot (無鎖)
+        long seq;
+        try {
+            seq = ringBuffer.tryNext();
+        } catch (InsufficientCapacityException e) {
+            StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_DROP_COUNT, 1);
+            return;
         }
 
-        StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, 1);
-        if (authenticatedUserId != null) sessionManager.addSession(authenticatedUserId, ctx.channel());
+        long userId = 0;
+        try {
+            WalEvent event = ringBuffer.get(seq);
+            event.msgType = msgType;
+            event.arrivalTimeNs = arrivalTimeNs;
+            decodeSbeBody(content, ri, msgType, event);
+            userId = event.userId;
+        } finally {
+            ringBuffer.publish(seq);
+        }
+
+        // AUTH 會話綁定 (publish 後使用已擷取的 userId，不再觸碰 event)
+        if (existingUserId == null && msgType == MsgType.AUTH && userId > 0) {
+            sessionManager.addSession(userId, ctx.channel());
+        }
     }
 
-    private Long extractAuthUserId(ChannelHandlerContext ctx, io.netty.buffer.ByteBuf content, int length) {
-        if (ctx.channel().attr(WsSessionManager.USER_ID_KEY).get() != null) return null;
-        if (length < MIN_AUTH_LENGTH) return null;
+    /**
+     * 從客戶端 ByteBuf 解碼 SBE body 欄位至 WalEvent 結構。
+     * 偏移常數來自 SBE generated encoder，保證與 schema 一致。
+     */
+    private static void decodeSbeBody(ByteBuf buf, int ri, int msgType, WalEvent e) {
+        int b = ri + SBE_BODY_START; // SBE body fields 起始位址
 
-        int readerIndex = content.readerIndex();
-        if (content.getIntLE(readerIndex) != MsgType.AUTH) return null;
-
-        // 在舊版 20 標頭結構下，UserId 位於 28 (20 + 8)
-        long userId = content.getLongLE(readerIndex + 28);
-        return userId > 0 ? userId : null;
+        switch (msgType) {
+            case MsgType.ORDER_CREATE -> {
+                e.timestamp = buf.getLongLE(b + OrderCreateEncoder.timestampEncodingOffset());
+                e.userId    = buf.getLongLE(b + OrderCreateEncoder.userIdEncodingOffset());
+                e.orderCreate.symbolId      = buf.getIntLE(b + OrderCreateEncoder.symbolIdEncodingOffset());
+                e.orderCreate.price         = buf.getLongLE(b + OrderCreateEncoder.priceEncodingOffset());
+                e.orderCreate.qty           = buf.getLongLE(b + OrderCreateEncoder.qtyEncodingOffset());
+                e.orderCreate.side          = buf.getByte(b + OrderCreateEncoder.sideEncodingOffset());
+                e.orderCreate.clientOrderId = buf.getLongLE(b + OrderCreateEncoder.clientOrderIdEncodingOffset());
+            }
+            case MsgType.ORDER_CANCEL -> {
+                e.timestamp = buf.getLongLE(b + OrderCancelEncoder.timestampEncodingOffset());
+                e.userId    = buf.getLongLE(b + OrderCancelEncoder.userIdEncodingOffset());
+                e.orderCancel.orderId = buf.getLongLE(b + OrderCancelEncoder.orderIdEncodingOffset());
+            }
+            case MsgType.DEPOSIT -> {
+                e.timestamp = buf.getLongLE(b + DepositEncoder.timestampEncodingOffset());
+                e.userId    = buf.getLongLE(b + DepositEncoder.userIdEncodingOffset());
+                e.deposit.assetId = buf.getIntLE(b + DepositEncoder.assetIdEncodingOffset());
+                e.deposit.amount  = buf.getLongLE(b + DepositEncoder.amountEncodingOffset());
+            }
+            case MsgType.AUTH -> {
+                e.timestamp = buf.getLongLE(b + AuthEncoder.timestampEncodingOffset());
+                e.userId    = buf.getLongLE(b + AuthEncoder.userIdEncodingOffset());
+            }
+        }
     }
-
-    // 移除未使用的 writeFrameToWal 函式
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {

@@ -85,6 +85,16 @@ while (-not (Test-Path $cnc_file) -and $retry -lt 50) {
 Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 
 # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
+# ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
+# Media Driver (DEDICATED 3T):  CPU 8,9,10         mask=1792
+# Matching Engine (2T):         CPU 5,6             mask=96
+# Gateway (7T):                 CPU 0,1,2,3,4,12,15 mask=36895
+#   - netty-boss          ×1
+#   - netty-worker-1..4   ×4
+#   - wal-writer          ×1  (Disruptor → Chronicle Queue 單寫者)
+#   - gw-sender           ×1  (WAL → Aeron)
+# k6 (GOMAXPROCS=4):           CPU 7,11,13,14      mask=26752
+# =================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
 # Matching Engine 參數
