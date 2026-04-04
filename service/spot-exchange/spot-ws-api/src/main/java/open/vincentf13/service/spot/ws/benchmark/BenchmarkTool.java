@@ -213,16 +213,21 @@ public class BenchmarkTool {
     // ========== Report Handler ==========
 
     /**
-     * 回報處理器：解碼 SBE report，提取 clientOrderId 計算 round-trip。
+     * 回報處理器：解碼 report，提取 clientOrderId 計算 round-trip。
      *
-     * Report frame: [0-3] msgType | [4-11] reserved | [12-19] SBE header | [20+] SBE body
-     * SBE body 中 clientOrderId 的位置依 msgType 不同：
-     *   201 (Accepted):  body offset 24 → absolute 44
-     *   202 (Rejected):  body offset 16 → absolute 36
-     *   203 (Canceled):  body offset 32 → absolute 52
-     *   204 (Matched):   body offset 57 → absolute 77
+     * Report frame: [0-3] msgType (Constants.MsgType) | [4-11] reserved | [12-19] SBE header | [20+] SBE body
+     * msgType 使用 Constants.MsgType 值 (107/108/109/110)，非 SBE templateId (201-204)。
+     *
+     * clientOrderId 在 SBE body 中的位置 (absolute = 20 + SBE offset)：
+     *   107 (Accepted):  SBE offset 24 → absolute 44
+     *   108 (Rejected):  SBE offset 16 → absolute 36
+     *   109 (Canceled):  SBE offset 32 → absolute 52
+     *   110 (Matched):   SBE offset 57 → absolute 77
      */
     private static class ReportHandler extends SimpleChannelInboundHandler<Object> {
+        // Constants.MsgType report codes
+        private static final int ACCEPTED = 107, REJECTED = 108, CANCELED = 109, MATCHED = 110;
+
         private final WebSocketClientHandshaker handshaker;
         private final CountDownLatch connected;
 
@@ -249,20 +254,12 @@ public class BenchmarkTool {
 
                 int msgType = content.getIntLE(0);
 
-                // 統計回報類型
                 switch (msgType) {
-                    case 201 -> acceptedCount.incrementAndGet();
-                    case 202 -> {
-                        rejectedCount.incrementAndGet();
-                        long cid = content.readableBytes() >= 44 ? content.getLongLE(36) : 0;
-                        System.err.printf("[REJECTED] clientOrderId=%d%n", cid);
-                    }
-                    case 203 -> canceledCount.incrementAndGet();
-                    case 204 -> matchedCount.incrementAndGet();
-                    default -> {
-                        unknownCount.incrementAndGet();
-                        System.err.printf("[UNKNOWN REPORT] msgType=%d, len=%d%n", msgType, content.readableBytes());
-                    }
+                    case ACCEPTED -> acceptedCount.incrementAndGet();
+                    case REJECTED -> rejectedCount.incrementAndGet();
+                    case CANCELED -> canceledCount.incrementAndGet();
+                    case MATCHED  -> matchedCount.incrementAndGet();
+                    default -> { unknownCount.incrementAndGet(); return; }
                 }
 
                 if (!measuring) return;
@@ -280,16 +277,16 @@ public class BenchmarkTool {
 
         private long extractClientOrderId(int msgType, ByteBuf buf) {
             return switch (msgType) {
-                case 201 -> buf.readableBytes() >= 52 ? buf.getLongLE(44) : 0;  // Accepted
-                case 202 -> buf.readableBytes() >= 44 ? buf.getLongLE(36) : 0;  // Rejected
-                case 203 -> buf.readableBytes() >= 60 ? buf.getLongLE(52) : 0;  // Canceled
-                case 204 -> buf.readableBytes() >= 85 ? buf.getLongLE(77) : 0;  // Matched
+                case ACCEPTED -> buf.readableBytes() >= 52 ? buf.getLongLE(44) : 0;
+                case REJECTED -> buf.readableBytes() >= 44 ? buf.getLongLE(36) : 0;
+                case CANCELED -> buf.readableBytes() >= 60 ? buf.getLongLE(52) : 0;
+                case MATCHED  -> buf.readableBytes() >= 85 ? buf.getLongLE(77) : 0;
                 default -> 0;
             };
         }
 
         @Override public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            System.err.println("Error: " + cause.getMessage());
+            System.err.println("WS Error: " + cause.getMessage());
         }
     }
 }
