@@ -165,7 +165,6 @@ public class OrderBook {
     // ========== 索引與狀態管理 ==========
 
     private void addToBook(Order order) {
-        order.validateState();
         long price = order.getPrice();
         Long2ObjectHashMap<Deque<Order>> levels = getLevels(order.getSide() == OrderSide.BUY);
         Deque<Order> level = levels.get(price);
