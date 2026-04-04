@@ -92,14 +92,14 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 # Matching Engine (3 核):       CPU 5,6,7                mask=224
 #   - matching-receiver    ×1  (busy-spin)
 #   - (CPU 6,7 留給 GC + Spring scheduler)
-# Gateway (7 核):               CPU 0,1,2,3,11,12,15    mask=36879
+# Gateway (8 核, 7 workers):    CPU 0,1,2,3,4,11,12,15  mask=38943
 #   - netty-boss           ×1
-#   - netty-worker-1..3    ×3  (從 4 降為 3，騰出 1 核給 GC)
+#   - netty-worker-1..3    ×3
 #   - wal-writer           ×1
 #   - gw-sender            ×1
 #   - report-receiver      ×1
-#   - (剩餘 CPU 時間給 GC + Spring + MetricsWriter)
-# Benchmark:                    CPU 4,13,14              mask=24592
+#   - (1 核空餘給 GC + Spring + MetricsWriter)
+# Benchmark:                    CPU 13,14                mask=24576
 # =================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
@@ -126,7 +126,7 @@ $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -
 $e.ProcessorAffinity = 224
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 36879
+$g.ProcessorAffinity = 38943
 
 Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 
@@ -163,7 +163,7 @@ $bench_args = @(
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 500
-$bench.ProcessorAffinity = 24592
+$bench.ProcessorAffinity = 24576
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
