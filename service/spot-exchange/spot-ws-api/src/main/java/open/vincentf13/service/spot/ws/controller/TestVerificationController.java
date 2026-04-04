@@ -56,7 +56,6 @@ public class TestVerificationController {
         putJvmMetrics(m);
         m.put("cpu_affinity_history", buildCpuAffinityHistory());
         m.put("current_cpu_id", buildCurrentCpuIds());
-        m.put("latency", getCombinedLatency());
         return m;
     }
 
@@ -144,44 +143,6 @@ public class TestVerificationController {
             parts.length > 1 ? parts[1] : "",
             parts.length > 2 ? parts[2] : ""
         };
-    }
-
-    private List<Map<String, Object>> getCombinedLatency() {
-        TreeMap<Long, Map<String, Map<Long, Long>>> rawData = new TreeMap<>(Collections.reverseOrder());
-
-        Storage.self().latencyHistory().forEach((k, v) -> {
-            long metricKey = k / 1_000_000_000_000_000L;
-            long rest = k % 1_000_000_000_000_000L;
-            long p = rest / 1_000_000_000_000L;
-            long t = rest % 1_000_000_000_000L;
-
-            String label = metricKey == MetricsKey.LATENCY_MATCHING ? "matching"
-                         : metricKey == MetricsKey.LATENCY_TRANSPORT ? "transport" : null;
-            if (label != null) {
-                rawData.computeIfAbsent(t, k1 -> new HashMap<>())
-                       .computeIfAbsent(label, k2 -> new HashMap<>())
-                       .put(p, v);
-            }
-        });
-
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (var entry : rawData.entrySet()) {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
-            addLatencyPercentiles(map, "transport", entry.getValue().get("transport"));
-            addLatencyPercentiles(map, "matching", entry.getValue().get("matching"));
-            result.add(map);
-        }
-        return result;
-    }
-
-    private void addLatencyPercentiles(Map<String, Object> target, String label, Map<Long, Long> pData) {
-        if (pData == null) return;
-        Map<String, Object> sorted = new LinkedHashMap<>();
-        if (pData.containsKey(50L))  sorted.put("p50",  pData.get(50L) + " ns");
-        if (pData.containsKey(99L))  sorted.put("p99",  pData.get(99L) + " ns");
-        if (pData.containsKey(100L)) sorted.put("p100", pData.get(100L) + " ns");
-        target.put(label, sorted);
     }
 
     @GetMapping("/balance")
