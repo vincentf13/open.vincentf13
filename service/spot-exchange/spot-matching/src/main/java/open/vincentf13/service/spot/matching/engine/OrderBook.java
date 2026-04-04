@@ -100,7 +100,7 @@ public class OrderBook {
         if (o == null || o.getUserId() != userId || o.isTerminal()) return null;
 
         removeFromLevel(o);
-        o.setStatus((byte) OrderStatus.CANCELED.ordinal());
+        o.setStatus((byte) OrderStatus.CANCELED.value());
         finalizeOrder(o, gwSeq);
         return o;
     }
@@ -128,7 +128,7 @@ public class OrderBook {
         }
 
         if (taker.remainingQty() > 0) addToBook(taker);
-        else taker.setStatus((byte) OrderStatus.FILLED.ordinal());
+        else taker.setStatus((byte) OrderStatus.FILLED.value());
     }
 
     private void executeMatchAtLevel(Order taker, long price, Long2ObjectRBTreeMap<Deque<Order>> counters,
@@ -140,6 +140,7 @@ public class OrderBook {
         while (!makers.isEmpty() && taker.remainingQty() > 0) {
             Order maker = makers.peekFirst();
             if (!orderIndex.containsKey(maker.getOrderId())) { makers.pollFirst(); continue; }
+            if (maker.getUserId() == taker.getUserId()) { makers.pollFirst(); continue; } // 防止自成交
 
             long matchQty = Math.min(taker.remainingQty(), maker.remainingQty());
             Trade t = MatchingPool.borrowTrade();
@@ -192,14 +193,14 @@ public class OrderBook {
     }
 
     public void syncOrder(Order o, long gwSeq) {
-        if (o.getStatus() != OrderStatus.CANCELED.ordinal()) {
+        if (o.getStatus() != OrderStatus.CANCELED.value()) {
             o.setStatus((byte) (o.remainingQty() == 0
-                    ? OrderStatus.FILLED.ordinal()
-                    : (o.getFilled() > 0 ? OrderStatus.PARTIALLY_FILLED.ordinal() : OrderStatus.NEW.ordinal())));
+                    ? OrderStatus.FILLED.value()
+                    : (o.getFilled() > 0 ? OrderStatus.PARTIALLY_FILLED.value() : OrderStatus.NEW.value())));
         }
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
-        if (o.getStatus() != OrderStatus.CANCELED.ordinal()) o.validateState();
+        if (o.getStatus() != OrderStatus.CANCELED.value()) o.validateState();
         pendingOrders.put(o.getOrderId(), o);
         if (!o.isTerminal()) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); }
         else { pendingRemovals.add(o.getOrderId()); pendingAdds.remove(o.getOrderId()); }

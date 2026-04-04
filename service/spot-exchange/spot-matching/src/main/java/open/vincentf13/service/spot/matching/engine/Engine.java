@@ -93,7 +93,7 @@ public class Engine {
             progress.commitLastProcessedMsgSeq(pendingFlushSeq);
             pendingFlushSeq = MSG_SEQ_NONE;
         }
-        walMetadata.put(MetaDataKey.Wal.MACHING_ENGINE_POINT, progress);
+        walMetadata.put(MetaDataKey.Wal.MATCHING_ENGINE_POINT, progress);
 
         if (lastReceivedSeq != MSG_SEQ_NONE) {
             networkProgress.setLastProcessedSeq(lastReceivedSeq);

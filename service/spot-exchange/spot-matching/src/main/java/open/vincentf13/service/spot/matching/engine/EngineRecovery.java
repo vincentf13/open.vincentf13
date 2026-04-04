@@ -25,7 +25,7 @@ public class EngineRecovery {
         var walMetadata = Storage.self().walMetadata();
         var msgMetadata = Storage.self().msgProgressMetadata();
 
-        WalProgress savedWal = walMetadata.get(open.vincentf13.service.spot.infra.Constants.MetaDataKey.Wal.MACHING_ENGINE_POINT);
+        WalProgress savedWal = walMetadata.get(open.vincentf13.service.spot.infra.Constants.MetaDataKey.Wal.MATCHING_ENGINE_POINT);
         if (savedWal != null) progress.copyFrom(savedWal);
 
         MsgProgress savedMsg = msgMetadata.get(open.vincentf13.service.spot.infra.Constants.MetaDataKey.MsgProgress.MATCHING_ENGINE_RECEIVE);

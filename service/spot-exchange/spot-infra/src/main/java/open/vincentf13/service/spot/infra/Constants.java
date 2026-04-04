@@ -2,7 +2,6 @@ package open.vincentf13.service.spot.infra;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.openhft.chronicle.wire.WireKey;
 
 /**
   全系統共享核心常數
@@ -32,7 +31,6 @@ public class Constants {
     public static class MatchingConfig {
         public static final int INITIAL_BOOK_ORDER_COUNT = 200_000;
         public static final int INITIAL_BOOK_LEVEL_CAPACITY = 4096;
-        public static final int INITIAL_POOL_SIZE = 100_000;
         public static final int STARTUP_PRE_ALLOCATE_COUNT = 1000;
     }
 
@@ -47,7 +45,7 @@ public class Constants {
 
         /** WAL 索引與狀態進度 (WalProgress) 的 Key */
         public static class Wal {
-            public static final byte MACHING_ENGINE_POINT = 1;
+            public static final byte MATCHING_ENGINE_POINT = 1;
             public static final byte WS_PUSH_TO_CLIENT_POINT = 2;
         }
     }
@@ -197,11 +195,9 @@ public class Constants {
         public static final String USER_ASSETS = "user-assets";
         public static final String ORDERS = "orders";
         public static final String ACTIVE_ORDERS = "active-idx";
-        public static final String USER_ACTIVE_ORDERS = "user-active-orders";
         public static final String TRADES = "trades";
         public static final String CIDS = "cid-idx";
         public static final String METADATA = "metadata";
-        public static final String METRICS_HISTORY = "metrics-history";
     }
 
     /** 
@@ -213,13 +209,6 @@ public class Constants {
         CLIENT_TO_GW("client-to-gw-wal");
 
         private final String path;
-    }
-
-    /**
-      Chronicle Wire 數據欄位定義
-     */
-    public enum ChronicleWireKey implements WireKey {
-        msgType, payload, gwSeq, matchingSeq, userId, assetId, data, timestamp
     }
 
     /**
@@ -242,7 +231,6 @@ public class Constants {
       WebSocket 專用常數
      */
     public static class Ws {
-        public static final int WAL_RING_BUFFER_SIZE = 512 * 1024 * 1024;
         public static final String PATH = "/ws/spot";
         public static final String PONG = "{\"op\":\"pong\"}";
         public static final String CREATE = "order.create";

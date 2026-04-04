@@ -138,7 +138,7 @@ public class AeronReceiver extends Worker {
         long lastCycle = ROLL_CYCLE.toCycle(lastIndex);
         long currCycle = ROLL_CYCLE.toCycle(currentIndex);
         long currSeqInCycle = ROLL_CYCLE.toSequenceNumber(currentIndex);
-        return currCycle == lastCycle + 1 && currSeqInCycle == 0;
+        return currCycle > lastCycle && currSeqInCycle == 0;
     }
 
     @Override

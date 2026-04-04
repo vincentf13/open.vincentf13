@@ -129,7 +129,7 @@ public class Ledger {
     }
 
     public boolean freezeBalance(long userId, int assetId, long amount, long seq) {
-        if (amount < 0) throw new IllegalArgumentException("Freeze amount must be >= 0");
+        if (amount <= 0) return true; // 零凍結視為成功但不操作
         Balance b = getOrCreateBalance(userId, assetId);
         if (shouldSkipSeqChange(b, seq)) return true;
         if (b.getAvailable() < amount) return false;
@@ -141,7 +141,7 @@ public class Ledger {
     }
 
     public void unfreezeBalance(long userId, int assetId, long amount, long seq) {
-        if (amount < 0) throw new IllegalArgumentException("Unfreeze amount must be >= 0");
+        if (amount <= 0) return; // 零解凍不操作
         Balance b = getOrCreateBalance(userId, assetId);
         if (shouldSkipSeqChange(b, seq)) return;
         if (amount > b.getFrozen()) {

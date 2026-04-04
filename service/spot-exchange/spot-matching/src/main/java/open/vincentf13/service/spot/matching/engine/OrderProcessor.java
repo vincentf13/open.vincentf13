@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
-import open.vincentf13.service.spot.model.CidKey;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.model.WalProgress;
@@ -71,7 +70,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     public void processCreateCommand(long userId, int symbolId, long price, long qty, Side side,
                                      long clientOrderId, long gatewaySequence, long timestamp, WalProgress progress) {
-        if (userId <= 0 || clientOrderId <= 0 || qty <= 0 || (side == Side.BUY && price <= 0)) {
+        if (userId <= 0 || clientOrderId <= 0 || qty <= 0 || price <= 0) {
             reporter.reportRejected(userId, clientOrderId);
             return;
         }
