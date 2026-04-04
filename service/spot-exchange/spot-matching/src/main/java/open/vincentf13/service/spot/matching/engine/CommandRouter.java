@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.agrona.DirectBuffer;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
-import static open.vincentf13.service.spot.infra.alloc.OffHeapUtil.getAddress;
 
 /** 
  指令路由器 (RingBuffer 專用版)
@@ -31,7 +30,7 @@ public class CommandRouter {
     public long route(int msgType, DirectBuffer buffer, int offset, int length, long timestamp, WalProgress progress) {
         if (length <= 0) return MSG_SEQ_NONE;
 
-        final long address = getAddress(buffer, offset);
+        final long address = buffer.addressOffset() + offset;
         final ThreadContext ctx = ThreadContext.get();
 
         return switch (msgType) {

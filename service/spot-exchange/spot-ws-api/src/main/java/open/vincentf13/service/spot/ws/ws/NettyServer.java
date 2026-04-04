@@ -20,7 +20,6 @@ import org.springframework.stereotype.Component;
 
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
 import open.vincentf13.service.spot.infra.Constants.Ws;
-import open.vincentf13.service.spot.infra.thread.AffinityThreadFactory;
 import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 
@@ -54,11 +53,11 @@ public class NettyServer {
         if (!started.compareAndSet(false, true)) return;
 
         new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1, new AffinityThreadFactory("netty-boss",
+            bossGroup = new NioEventLoopGroup(1, AffinityUtil.newThreadFactory("netty-boss",
                     new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
                     new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS}));
 
-            workerGroup = new NioEventLoopGroup(workerCount, new AffinityThreadFactory("netty-worker",
+            workerGroup = new NioEventLoopGroup(workerCount, AffinityUtil.newThreadFactory("netty-worker",
                     new long[]{MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4},
                     new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2,

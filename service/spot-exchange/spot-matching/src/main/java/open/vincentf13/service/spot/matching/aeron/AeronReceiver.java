@@ -9,7 +9,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.*;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
-import open.vincentf13.service.spot.infra.alloc.PreTouchUtil;
+import open.vincentf13.service.spot.infra.util.PreTouchUtil;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.thread.Worker;
@@ -57,8 +57,8 @@ public class AeronReceiver extends Worker {
     protected void onStart() {
         PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.DEFAULT_BASE_DIR));
         engine.onStart();
-        subscription = AeronClientHolder.aeron().addSubscription(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
-        controlPub = AeronClientHolder.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
+        subscription = AeronUtil.aeron().addSubscription(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
+        controlPub = AeronUtil.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
         assembler = new FragmentAssembler(this::onFragment);
 
         progress.setLastProcessedSeq(engine.getNetworkProgress().getLastProcessedSeq());
@@ -146,6 +146,6 @@ public class AeronReceiver extends Worker {
         if (subscription != null) subscription.close();
         if (controlPub != null) controlPub.close();
         ThreadContext.cleanup();
-        AeronThreadContext.cleanup();
+        AeronUtil.cleanupThreadLocal();
     }
 }

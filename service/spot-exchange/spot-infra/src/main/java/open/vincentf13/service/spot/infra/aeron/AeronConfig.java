@@ -3,7 +3,7 @@ package open.vincentf13.service.spot.infra.aeron;
 import io.aeron.Aeron;
 import io.aeron.driver.MediaDriver;
 import io.aeron.driver.ThreadingMode;
-import open.vincentf13.service.spot.infra.thread.Strategies;
+import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.SigInt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Configuration;
 import jakarta.annotation.PreDestroy;
 
 /**
- * Aeron 生產級通訊配置 (AeronConfig)
- * 職責：整合 MediaDriver 運行時配置與 Aeron 實例注入
+ * Aeron 通訊配置
+ * 職責：建立 MediaDriver + Aeron Client，注入全域實例。
  */
 @Configuration
 public class AeronConfig {
@@ -29,26 +29,24 @@ public class AeronConfig {
     @Bean
     public Aeron aeron() {
         if (driverEnabled) {
-            MediaDriver.Context driverCtx = new MediaDriver.Context()
+            var idle = new BusySpinIdleStrategy();
+            driver = MediaDriver.launch(new MediaDriver.Context()
                     .aeronDirectoryName(aeronDir)
                     .threadingMode(ThreadingMode.DEDICATED)
-                    .conductorIdleStrategy(Strategies.BUSY_SPIN)
-                    .senderIdleStrategy(Strategies.BUSY_SPIN)
-                    .receiverIdleStrategy(Strategies.BUSY_SPIN)
+                    .conductorIdleStrategy(idle)
+                    .senderIdleStrategy(idle)
+                    .receiverIdleStrategy(idle)
                     .termBufferSparseFile(false)
                     .publicationTermBufferLength(AeronConstants.DEFAULT_TERM_BUFFER_LENGTH)
-                    .dirDeleteOnStart(true);
-
-            driver = MediaDriver.launch(driverCtx);
+                    .dirDeleteOnStart(true));
         }
-        
-        Aeron.Context clientCtx = new Aeron.Context()
-                .aeronDirectoryName(aeronDir)
-                .preTouchMappedMemory(true);
 
-        Aeron aeron = Aeron.connect(clientCtx);
-        AeronClientHolder.setAeron(aeron);
-        
+        Aeron aeron = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(aeronDir)
+                .preTouchMappedMemory(true));
+
+        AeronUtil.setAeron(aeron);
+
         SigInt.register(() -> {
             if (aeron != null) aeron.close();
             if (driver != null) driver.close();
@@ -58,7 +56,7 @@ public class AeronConfig {
 
     @PreDestroy
     public void close() {
-        Aeron aeron = AeronClientHolder.aeron();
+        Aeron aeron = AeronUtil.aeron();
         if (aeron != null) aeron.close();
         if (driver != null) driver.close();
     }

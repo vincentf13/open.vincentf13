@@ -6,7 +6,7 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum;
 import open.vincentf13.service.spot.infra.Constants.ChronicleQueueEnum;
-import open.vincentf13.service.spot.infra.alloc.PreTouchUtil;
+import open.vincentf13.service.spot.infra.util.PreTouchUtil;
 import open.vincentf13.service.spot.model.*;
 
 import java.io.File;

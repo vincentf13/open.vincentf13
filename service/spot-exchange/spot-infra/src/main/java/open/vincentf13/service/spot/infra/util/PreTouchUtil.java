@@ -1,4 +1,4 @@
-package open.vincentf13.service.spot.infra.alloc;
+package open.vincentf13.service.spot.infra.util;
 
 import lombok.extern.slf4j.Slf4j;
 

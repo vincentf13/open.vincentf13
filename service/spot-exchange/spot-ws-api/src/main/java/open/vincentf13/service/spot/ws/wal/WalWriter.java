@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
 import net.openhft.chronicle.wire.Wire;
-import open.vincentf13.service.spot.infra.alloc.PreTouchUtil;
+import open.vincentf13.service.spot.infra.util.PreTouchUtil;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.chronicle.WalField;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;

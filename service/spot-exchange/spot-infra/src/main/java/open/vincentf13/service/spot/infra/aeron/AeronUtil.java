@@ -1,34 +1,49 @@
 package open.vincentf13.service.spot.infra.aeron;
 
+import io.aeron.Aeron;
 import io.aeron.Publication;
 import io.aeron.logbuffer.BufferClaim;
 import org.agrona.MutableDirectBuffer;
 
 /**
- * Aeron 基礎工具類 (極簡版)
- * 職責：封裝 Aeron Publication 的 Claim 流程，將複雜的 long 返回值轉化為簡潔的狀態。
+ * Aeron 基礎工具類
+ *
+ * 職責：
+ * 1. 全域 Aeron 實例持有 (由 AeronConfig 注入)
+ * 2. 線程私有 BufferClaim 管理 (消除分配開銷)
+ * 3. Publication claim 模式封裝 (long → 語義狀態碼)
  */
 public class AeronUtil {
-    
-    // 發送結果常數定義
-    public static final int SEND_OK = 0;              // 發送成功
-    public static final int SEND_BACKPRESSURE = -1;    // 系統背壓 (應重試)
-    public static final int SEND_DISCONNECTED = -2;    // 鏈路斷開 (應重連)
-    public static final int SEND_ERROR = -3;           // 通道關閉或其它異常
+
+    // ========== 全域 Aeron 實例 ==========
+
+    private static Aeron SHARED_AERON;
+
+    public static Aeron aeron() { return SHARED_AERON; }
+    public static void setAeron(Aeron aeron) { SHARED_AERON = aeron; }
+
+    // ========== 線程私有 BufferClaim ==========
+
+    private static final ThreadLocal<BufferClaim> BUFFER_CLAIM = ThreadLocal.withInitial(BufferClaim::new);
+
+    public static void cleanupThreadLocal() { BUFFER_CLAIM.remove(); }
+
+    // ========== Claim 模式發送 ==========
+
+    public static final int SEND_OK = 0;
+    public static final int SEND_BACKPRESSURE = -1;
+    public static final int SEND_DISCONNECTED = -2;
+    public static final int SEND_ERROR = -3;
 
     @FunctionalInterface
     public interface AeronHandler {
         void onFill(MutableDirectBuffer buffer, int offset);
     }
 
-    /**
-     * 發送訊息 (Claim 模式)
-     * @return SEND_OK, SEND_BACKPRESSURE, SEND_DISCONNECTED, SEND_ERROR
-     */
     public static int send(Publication pub, int len, AeronHandler handler) {
-        final BufferClaim claim = AeronThreadContext.bufferClaim();
-        final long res = pub.tryClaim(len, claim);
-        
+        BufferClaim claim = BUFFER_CLAIM.get();
+        long res = pub.tryClaim(len, claim);
+
         if (res > 0) {
             try {
                 handler.onFill(claim.buffer(), claim.offset());
@@ -37,9 +52,9 @@ public class AeronUtil {
             }
             return SEND_OK;
         }
-        
+
         if (res == Publication.BACK_PRESSURED || res == Publication.ADMIN_ACTION) return SEND_BACKPRESSURE;
         if (res == Publication.NOT_CONNECTED) return SEND_DISCONNECTED;
-        return SEND_ERROR; // CLOSED 或 MAX_POSITION_EXCEEDED
+        return SEND_ERROR;
     }
 }
