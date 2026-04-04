@@ -7,26 +7,32 @@ import io.aeron.logbuffer.Header;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import net.openhft.chronicle.map.ChronicleMap;
 import open.vincentf13.service.spot.infra.aeron.*;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
-import open.vincentf13.service.spot.infra.metrics.WorkerMetrics;
 import open.vincentf13.service.spot.infra.thread.ThreadContext;
 import open.vincentf13.service.spot.infra.thread.Worker;
 import open.vincentf13.service.spot.infra.util.Clock;
 import open.vincentf13.service.spot.matching.engine.Engine;
 import open.vincentf13.service.spot.model.MsgProgress;
+import net.openhft.chronicle.queue.RollCycles;
 import org.agrona.DirectBuffer;
 import org.springframework.stereotype.Component;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
-/** 撮合服務 Aeron 接收器 (極簡扁平化版) */
+/**
+ * 撮合服務 Aeron 接收器
+ *
+ * 新增：線性一致性檢查 (Continuity Check)
+ * 若 seq 非 lastProcessed + 1 且非合法的 cycle 邊界跳躍，
+ * 判定為數據空洞 (Data Hole)，透過 RESUME 通知上游重定位 Tailer。
+ */
 @Slf4j
 @Component
 public class AeronReceiver extends Worker {
+    private static final RollCycles ROLL_CYCLE = RollCycles.FAST_DAILY;
+
     private final Engine engine;
     private final MsgProgress progress = new MsgProgress();
 
@@ -53,7 +59,6 @@ public class AeronReceiver extends Worker {
         controlPub = AeronClientHolder.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
         assembler = new FragmentAssembler(this::onFragment);
 
-        // 從 Engine 讀取恢復位點 (Engine 啟動時已載入網路進度)
         progress.setLastProcessedSeq(engine.getNetworkProgress().getLastProcessedSeq());
         log.info("AeronReceiver 啟動，進度: {}，等待恢復...", progress.getLastProcessedSeq());
         sendResume();
@@ -63,8 +68,6 @@ public class AeronReceiver extends Worker {
     protected int doWork() {
         if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
 
-        // 死鎖防護：SENDING 狀態下長時間無新消息 → 懷疑 Sender 卡在 WAITING（SEND_DISCONNECTED 後無 RESUME）
-        // 重置為 WAITING 並重新發送 RESUME，打破死鎖
         if (currentState == AeronState.SENDING
                 && lastMsgReceivedTime > 0
                 && Clock.now() - lastMsgReceivedTime > AeronConstants.RECEIVER_STALL_TIMEOUT_MS) {
@@ -88,11 +91,10 @@ public class AeronReceiver extends Worker {
     }
 
     private void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
-        // 強制使用 8 偏移量，確保與 32-byte 標頭結構對齊
-        long seq = buffer.getLong(offset + 8, java.nio.ByteOrder.LITTLE_ENDIAN); 
+        long seq = buffer.getLong(offset + 8, java.nio.ByteOrder.LITTLE_ENDIAN);
         long last = progress.getLastProcessedSeq();
 
-        // 1. 處理狀態同步
+        // 1. 狀態同步
         if (currentState == AeronState.WAITING) {
             if (seq > last || last == MSG_SEQ_NONE) {
                 log.info("AeronReceiver 鏈路對齊成功！開始消費，起始位點: {}", seq);
@@ -102,12 +104,38 @@ public class AeronReceiver extends Worker {
             }
         }
 
+        // 2. 冪等過濾 (重複指令)
         if (seq <= last) return;
 
+        // 3. 線性一致性檢查 (Continuity Check)
+        //    seq 為 Chronicle Queue index，同 cycle 內 +1 遞增；
+        //    cycle 邊界時 sequence-in-cycle 歸零，須另行判斷。
+        if (last != MSG_SEQ_NONE && seq != last + 1) {
+            if (!isValidCycleBoundary(last, seq)) {
+                log.error("數據空洞！expected={}, actual={}. 發送 RESUME 請求上游重定位。", last + 1, seq);
+                StaticMetricsHolder.addCounter(MetricsKey.AERON_DROPPED_COUNT, 1);
+                currentState = AeronState.WAITING;
+                sendResume();
+                return;
+            }
+        }
+
+        // 4. 處理訊息
         engine.onAeronMessage(buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN), buffer, offset, length);
         progress.setLastProcessedSeq(seq);
         lastMsgReceivedTime = Clock.now();
         StaticMetricsHolder.addCounter(MetricsKey.AERON_RECV_COUNT, 1);
+    }
+
+    /**
+     * 判斷 seq 跳躍是否為合法的 Chronicle Queue cycle 邊界。
+     * 合法條件：新 cycle = 舊 cycle + 1，且新 cycle 的 sequence-in-cycle = 0。
+     */
+    private static boolean isValidCycleBoundary(long lastIndex, long currentIndex) {
+        long lastCycle = ROLL_CYCLE.toCycle(lastIndex);
+        long currCycle = ROLL_CYCLE.toCycle(currentIndex);
+        long currSeqInCycle = ROLL_CYCLE.toSequenceNumber(currentIndex);
+        return currCycle == lastCycle + 1 && currSeqInCycle == 0;
     }
 
     @Override

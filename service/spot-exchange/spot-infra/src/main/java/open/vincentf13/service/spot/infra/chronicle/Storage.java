@@ -6,6 +6,7 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import open.vincentf13.service.spot.infra.Constants.ChronicleMapEnum;
 import open.vincentf13.service.spot.infra.Constants.ChronicleQueueEnum;
+import open.vincentf13.service.spot.infra.alloc.PreTouchUtil;
 import open.vincentf13.service.spot.model.*;
 
 import java.io.File;
@@ -61,6 +62,9 @@ public class Storage {
             this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 2048, 8, 256);
             
             this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
+
+            // 預熱：讀取所有 mmap 頁面，強迫 OS 分配實體 RAM，消除運行時 Page Fault
+            preTouchAll();
             log.info(">>> [STORAGE] Chronicle 所有資源初始化成功。");
         } catch (Exception e) {
             log.error(">>> [STORAGE-ERROR] Chronicle 初始化期間發生嚴重錯誤！可能是檔案被其他進程佔用。", e);
@@ -120,7 +124,19 @@ public class Storage {
     private ChronicleQueue createQueue(ChronicleQueueEnum q) {
         String dir = ChronicleMapEnum.WAL_BASE_DIR;
         new File(dir).mkdirs();
-        return SingleChronicleQueueBuilder.single(dir + q.getPath()).rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY).build();
+        return SingleChronicleQueueBuilder.single(dir + q.getPath())
+                .rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY)
+                .blockSize(128 << 20) // 128MB 預分配塊，減少 OS 分頁時的停頓
+                .build();
+    }
+
+    private void preTouchAll() {
+        long t0 = System.nanoTime();
+        long pages = 0;
+        pages += PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.DEFAULT_BASE_DIR));
+        pages += PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.WAL_BASE_DIR));
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        log.info(">>> [STORAGE] Pre-touch 完成：{} 頁 ({}MB)，耗時 {} ms", pages, (pages * 4096) >> 20, ms);
     }
 
     public void close() {
