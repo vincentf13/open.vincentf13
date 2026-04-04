@@ -1,9 +1,12 @@
 package open.vincentf13.service.spot.infra.metrics;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -15,6 +18,21 @@ public class StaticMetricsHolder {
 
     private static final ConcurrentHashMap<Long, AtomicLong> VALUES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Long, LatencyWindow> LATENCY_WINDOWS = new ConcurrentHashMap<>();
+
+    // GC 事件緩衝：GC notification thread 寫入，MetricsWriter 批次刷盤
+    public record GcEvent(long key, String meta) {}
+    private static final ConcurrentLinkedQueue<GcEvent> PENDING_GC_EVENTS = new ConcurrentLinkedQueue<>();
+
+    public static void bufferGcEvent(long key, String meta) {
+        PENDING_GC_EVENTS.add(new GcEvent(key, meta));
+    }
+
+    public static List<GcEvent> drainGcEvents() {
+        List<GcEvent> batch = new ArrayList<>();
+        GcEvent e;
+        while ((e = PENDING_GC_EVENTS.poll()) != null) batch.add(e);
+        return batch;
+    }
 
     public static void addCounter(long key, long delta) {
         VALUES.computeIfAbsent(key, k -> new AtomicLong()).addAndGet(delta);

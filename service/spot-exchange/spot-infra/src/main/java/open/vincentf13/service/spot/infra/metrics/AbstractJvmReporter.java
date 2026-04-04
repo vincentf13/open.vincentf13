@@ -4,7 +4,6 @@ import com.sun.management.GarbageCollectionNotificationInfo;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
-import open.vincentf13.service.spot.infra.chronicle.Storage;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.management.NotificationEmitter;
@@ -57,7 +56,8 @@ public abstract class AbstractJvmReporter {
 
         StaticMetricsHolder.setGauge(eventKey, encoded);
         StaticMetricsHolder.setGauge(getGcDurationKey(), durationMs);
-        Storage.self().gcEventHistory().put(eventKey, encodeGcMeta(info.getGcName(), info.getGcAction(), info.getGcCause()));
+        // 緩衝 GC metadata，由 MetricsWriter 異步批次寫入 ChronicleMap
+        StaticMetricsHolder.bufferGcEvent(eventKey, encodeGcMeta(info.getGcName(), info.getGcAction(), info.getGcCause()));
     }
 
     private String encodeGcMeta(String gcName, String gcAction, String gcCause) {
