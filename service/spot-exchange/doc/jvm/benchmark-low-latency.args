@@ -16,6 +16,8 @@
 -Xmx2g
 -XX:+AlwaysPreTouch
 -XX:+UseLargePages
+-XX:LargePageSizeInBytes=2m
+-XX:ZAllocationSpikeTolerance=5.0
 -XX:MaxDirectMemorySize=1g
 
 # --- 降低測量抖動 ---

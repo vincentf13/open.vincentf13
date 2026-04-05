@@ -26,6 +26,12 @@ Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 2
 Safe-Remove $aeron_dir
 
+# --- 1.1 檔案預分配 (消除磁碟擴展延遲) ---
+if (!(Test-Path $aeron_dir)) { New-Item -ItemType Directory -Force $aeron_dir }
+Write-Host "正在執行磁碟空間預分配 (WAL & State: 1GB)..."
+fsutil file createnew "$aeron_dir\wal-spot-exchange.dat" 1073741824 | Out-Null
+fsutil file createnew "$aeron_dir\matching-engine-state.dat" 1073741824 | Out-Null
+
 # --- 2. 執行並行 Maven 編譯 ---
 Write-Host "正在執行並行 Maven 編譯 (Threads=1C, Skip Tests)..."
 # 使用 -T 1C 開啟並行編譯，顯著縮短構建時間
@@ -86,25 +92,12 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 
 # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
 # ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
-# 原則：每個 JVM 至少保留 1 核給 GC/Spring/JIT，不被 busy-spin 佔滿
+# 原則：關鍵 Worker 綁定專核，GC/背景線程共享 Core 0, 1
 #
-# Media Driver (DEDICATED 3T):  CPU 7,8,9,10            mask=1920
-#   - conductor/sender/receiver ×3 (busy-spin)
-#   - (CPU 10 空餘給 GC，heap 512MB 壓力極低)
-# Matching Engine (2 核):       CPU 5,6                  mask=96
-#   - matching-receiver      ×1  (busy-spin，CPU 5)
-#   - matching-disk-flusher  ×1  (20ms 週期 ChronicleMap.put，CPU 6)
-#   - (CPU 6 兼 GC + Spring scheduler + disk flusher)
-#   - 60K/sec 時 flusher 吞吐約 6K puts/tick ≈ 12ms/20ms = 60% CPU 6 utilization
-#   - 若目標 > 100K/sec，需從其他 JVM 挪一核給 matching
-# Gateway (8 核, 7 workers):    CPU 0,1,2,3,4,11,12,15  mask=38943
-#   - netty-boss           ×1
-#   - netty-worker-1..3    ×3
-#   - wal-writer           ×1
-#   - gw-sender            ×1
-#   - report-receiver      ×1
-#   - (1 核空餘給 GC + Spring + MetricsWriter)
-# Benchmark:                    CPU 13,14                mask=24576
+# Media Driver (3T):            CPU 0,1,7,8,9           mask=899
+# Matching Engine (2T):         CPU 0,1,2,3             mask=15
+# Gateway (Netty/WAL):          CPU 0,1,4,6,10,11       mask=3155
+# Benchmark Tool:               CPU 12,13,14,15         mask=61440
 # =================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
@@ -128,10 +121,10 @@ $gw_args = @(
 
 # 非同步啟動並立即綁核
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 96
+$e.ProcessorAffinity = 15
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 38943
+$g.ProcessorAffinity = 3155
 
 Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 
@@ -168,7 +161,7 @@ $bench_args = @(
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 500
-$bench.ProcessorAffinity = 24576
+$bench.ProcessorAffinity = 61440
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
