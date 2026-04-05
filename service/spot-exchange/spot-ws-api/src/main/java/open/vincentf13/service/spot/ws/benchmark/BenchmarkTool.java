@@ -61,7 +61,9 @@ public class BenchmarkTool {
         System.out.printf("Benchmark: rate=%d/sec, duration=%ds, warmup=%ds%n", targetRate, durationSec, warmupSec);
         System.out.printf("Buyer=%d, Seller=%d, redeposit every %d orders%n", BUYER_ID, SELLER_ID, REDEPOSIT_INTERVAL);
 
-        EventLoopGroup group = new NioEventLoopGroup(2);
+        // 單 channel 只需 1 個 NIO worker；benchmark 綁在 2 核上，1 worker + 1 main busy-spin
+        // 剛好分佔 2 核避免 scheduler 抖動
+        EventLoopGroup group = new NioEventLoopGroup(1);
         CountDownLatch connected = new CountDownLatch(1);
 
         try {
