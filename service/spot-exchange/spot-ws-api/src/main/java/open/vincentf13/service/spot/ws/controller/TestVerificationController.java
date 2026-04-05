@@ -53,6 +53,7 @@ public class TestVerificationController {
     public Map<String, Object> getSaturation() {
         Map<String, Object> m = new LinkedHashMap<>();
         putCounterMetrics(m);
+        m.put("duty_cycle_history", getDutyCycleHistory());
         putJvmMetrics(m);
         m.put("cpu_affinity_history", buildCpuAffinityHistory());
         m.put("current_cpu_id", buildCurrentCpuIds());
@@ -71,10 +72,6 @@ public class TestVerificationController {
         target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
         target.put("order_duplicate", get(MetricsKey.ORDER_DUPLICATE_COUNT));
         target.put("report_recv", get(MetricsKey.REPORT_RECV_COUNT));
-        target.put("gateway_wal_writer_duty_cycle", get(MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE) + "%");
-        target.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) + "%");
-        target.put("gateway_report_receiver_duty_cycle", get(MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE) + "%");
-        target.put("matching_receiver_duty_cycle", get(MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) + "%");
     }
 
     private void putJvmMetrics(Map<String, Object> target) {
@@ -148,6 +145,46 @@ public class TestVerificationController {
             parts.length > 1 ? parts[1] : "",
             parts.length > 2 ? parts[2] : ""
         };
+    }
+
+    private List<Map<String, Object>> getDutyCycleHistory() {
+        final long DUTY_KEY_UNIT = 1_000_000_000_000L;
+        TreeMap<Long, Map<String, Long>> rawData = new TreeMap<>(Collections.reverseOrder());
+
+        Storage.self().dutyCycleHistory().forEach((k, v) -> {
+            long dutyKey = k / DUTY_KEY_UNIT;
+            long epochSec = k % DUTY_KEY_UNIT;
+            String label = dutyKeyToLabel(dutyKey);
+            if (label != null) {
+                rawData.computeIfAbsent(epochSec, k1 -> new LinkedHashMap<>()).put(label, v);
+            }
+        });
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var entry : rawData.entrySet()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
+            Map<String, Long> workers = entry.getValue();
+            putDutyPercent(row, "matching_receiver", workers);
+            putDutyPercent(row, "gateway_wal_writer", workers);
+            putDutyPercent(row, "gateway_sender", workers);
+            putDutyPercent(row, "gateway_report_receiver", workers);
+            result.add(row);
+        }
+        return result;
+    }
+
+    private void putDutyPercent(Map<String, Object> target, String label, Map<String, Long> workers) {
+        Long v = workers.get(label);
+        target.put(label, v == null ? "0%" : v + "%");
+    }
+
+    private String dutyKeyToLabel(long dutyKey) {
+        if (dutyKey == MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) return "matching_receiver";
+        if (dutyKey == MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) return "gateway_sender";
+        if (dutyKey == MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE) return "gateway_wal_writer";
+        if (dutyKey == MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE) return "gateway_report_receiver";
+        return null;
     }
 
     private List<Map<String, Object>> getCombinedLatency() {
