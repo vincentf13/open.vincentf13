@@ -63,7 +63,13 @@
 -XX:MaxInlineLevel=15
 -XX:FreqInlineSize=325
 -Dio.netty.allocator.type=pooled
--Dio.netty.recycler.maxCapacityPerThread=1024
+# Recycler 每線程容量放大 8×，讓 PromiseNotificationUnit 等內部物件不 overflow 回 heap
+-Dio.netty.recycler.maxCapacityPerThread=8192
+# PooledByteBufAllocator 快取層容量（small 級對應 <512B，我們訊息 ~100B 全走這層）
+-Dio.netty.allocator.smallCacheSize=512
+-Dio.netty.allocator.normalCacheSize=256
+# 降低 Netty noCleaner 路徑的分配（Direct buffer 清理器帶來 PhantomReference alloc）
+-Dio.netty.tryReflectionSetAccessible=true
 
 # --- 系統屬性 ---
 -Djava.net.preferIPv4Stack=true
