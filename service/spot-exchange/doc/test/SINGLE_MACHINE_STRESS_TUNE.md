@@ -159,7 +159,7 @@ $bench_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-    "200000",  # 20萬 orders/sec
+    "60000",   # 6萬 orders/sec
     "60",     # 180秒測量
     "10"       # 10秒預熱
 )
