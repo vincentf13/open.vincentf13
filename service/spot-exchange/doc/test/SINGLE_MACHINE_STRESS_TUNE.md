@@ -92,8 +92,11 @@ Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
 #   - conductor/sender/receiver ×3 (busy-spin)
 #   - (CPU 10 空餘給 GC，heap 512MB 壓力極低)
 # Matching Engine (2 核):       CPU 5,6                  mask=96
-#   - matching-receiver    ×1  (busy-spin)
-#   - (CPU 6 給 GC + Spring scheduler)
+#   - matching-receiver      ×1  (busy-spin，CPU 5)
+#   - matching-disk-flusher  ×1  (20ms 週期 ChronicleMap.put，CPU 6)
+#   - (CPU 6 兼 GC + Spring scheduler + disk flusher)
+#   - 60K/sec 時 flusher 吞吐約 6K puts/tick ≈ 12ms/20ms = 60% CPU 6 utilization
+#   - 若目標 > 100K/sec，需從其他 JVM 挪一核給 matching
 # Gateway (8 核, 7 workers):    CPU 0,1,2,3,4,11,12,15  mask=38943
 #   - netty-boss           ×1
 #   - netty-worker-1..3    ×3
