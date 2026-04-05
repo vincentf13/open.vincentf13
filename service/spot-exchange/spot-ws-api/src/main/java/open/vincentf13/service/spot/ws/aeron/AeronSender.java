@@ -163,10 +163,13 @@ public class AeronSender extends Worker {
                 return true;
             }
             if (res == SEND_BACKPRESSURE) { localBackPressure++; Thread.onSpinWait(); continue; }
+            // 任何非 SEND_OK 的返回都需倒回 tailer，避免 try-with-resources 吞掉此 walIndex
+            tailer.moveToIndex(walIndex);
             if (res == SEND_DISCONNECTED) {
                 log.warn("AeronSender 鏈路斷開，walIndex={} 將在重連後重送", walIndex);
-                tailer.moveToIndex(walIndex);  // 倒回，避免 try-with-resources 吞掉此 index
                 currentState = AeronState.WAITING;
+            } else {
+                log.warn("AeronSender 發送異常 res={}, walIndex={} 將重試", res, walIndex);
             }
             return false;
         }
