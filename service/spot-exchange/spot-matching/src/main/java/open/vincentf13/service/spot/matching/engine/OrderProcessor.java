@@ -105,6 +105,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         canceled.setFrozen(0);
         canceled.validateState();
         reporter.reportCanceled(canceled);
+        // 取消後 working order 已終局且無人參照，回池供重用
+        MatchingPool.releaseOrder(canceled);
     }
 
     // ========== TradeFinalizer ==========
@@ -167,6 +169,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
         taker.validateState();
         idempotencyGuard.record(userId, clientOrderId, orderId);
         reporter.reportAccepted(taker);
+        // taker 若完全成交（FILLED in match），此時 snap 已在 buffer，working order 可回池
+        if (taker.isTerminal()) MatchingPool.releaseOrder(taker);
     }
 
     private void validateMatchInputs(Trade trade, Order maker, Order taker) {

@@ -8,11 +8,11 @@ import open.vincentf13.service.spot.model.Balance;
 import open.vincentf13.service.spot.model.BalanceKey;
 import org.agrona.collections.Long2LongHashMap;
 import org.agrona.collections.Long2ObjectHashMap;
-import org.agrona.collections.LongHashSet;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,7 +24,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Service
-public class Ledger {
+public class Ledger implements DiskSink {
     private final ChronicleMap<BalanceKey, Balance> balancesDiskMap = Storage.self().balances();
     private final ChronicleMap<LongValue, LongValue> userAssetBitmaskDiskMap = Storage.self().userAssets();
 
@@ -32,16 +32,26 @@ public class Ledger {
     private final Long2ObjectHashMap<Balance> balanceCache = new Long2ObjectHashMap<>(100_000, 0.5f);
     private final Long2LongHashMap bitmaskCache = new Long2LongHashMap(100_000, 0.5f, 0L);
 
-    // 待落地標記優化：唯一標記去重版
-    private static final int MAX_DIRTY = 256000;
-    private final long[] dirtyQueue = new long[MAX_DIRTY];
-    private int dirtyCount = 0;
-    private final LongHashSet dirtyBitmasks = new LongHashSet(1000);
+    // 雙緩衝非同步落盤：matching 寫 active，flusher 讀 draining
+    private final Long2ObjectHashMap<Balance> dirtyBalancesA = new Long2ObjectHashMap<>(1024, 0.5f);
+    private final Long2ObjectHashMap<Balance> dirtyBalancesB = new Long2ObjectHashMap<>(1024, 0.5f);
+    private final Long2LongHashMap dirtyBitmasksA = new Long2LongHashMap(1024, 0.5f, -1L);
+    private final Long2LongHashMap dirtyBitmasksB = new Long2LongHashMap(1024, 0.5f, -1L);
+    private final ArrayDeque<Balance> balanceSnapPoolA = new ArrayDeque<>(1024);
+    private final ArrayDeque<Balance> balanceSnapPoolB = new ArrayDeque<>(1024);
 
-    private final BalanceKey reusableKey = new BalanceKey();
-    private final Balance reusableDiskBalance = new Balance(); // getUsing() 享元，避免 ChronicleMap.get() 分配
-    private final LongValue flushMaskKey = new LongValue();
-    private final LongValue flushMaskValue = new LongValue();
+    private Long2ObjectHashMap<Balance> activeDirtyBalances = dirtyBalancesA;
+    private Long2LongHashMap activeDirtyBitmasks = dirtyBitmasksA;
+    private volatile Long2ObjectHashMap<Balance> drainingDirtyBalances = null;
+    private volatile Long2LongHashMap drainingDirtyBitmasks = null;
+
+    private final BalanceKey reusableKey = new BalanceKey();                 // matching thread
+    private final Balance reusableDiskBalance = new Balance();               // matching thread (getUsing)
+    private final BalanceKey flusherBalanceKey = new BalanceKey();           // flusher thread
+    private final LongValue flusherMaskKey = new LongValue();                // flusher thread
+    private final LongValue flusherMaskValue = new LongValue();              // flusher thread
+    private final LongValue recoveryMaskKey = new LongValue();               // recovery path
+    private final LongValue recoveryMaskValue = new LongValue();             // recovery path
 
     @PostConstruct
     public void init() {
@@ -50,30 +60,47 @@ public class Ledger {
         log.info("Ledger 初始化完成。");
     }
 
-    public void flush() {
-        if (dirtyCount > 0) {
-            for (int i = 0; i < dirtyCount; i++) {
-                final long combinedKey = dirtyQueue[i];
-                final Balance b = balanceCache.get(combinedKey);
-                if (b != null) {
-                    reusableKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
-                    balancesDiskMap.put(reusableKey, b);
-                    b.setDirty(false);
-                }
-            }
-            dirtyCount = 0;
-        }
+    /** matching thread 呼叫：將 active dirty 緩衝翻轉為 draining */
+    @Override
+    public boolean rotate() {
+        if (drainingDirtyBalances != null) return false; // flusher 尚未完成
+        if (activeDirtyBalances.isEmpty() && activeDirtyBitmasks.isEmpty()) return false;
+        Long2ObjectHashMap<Balance> wB = activeDirtyBalances;
+        Long2LongHashMap wM = activeDirtyBitmasks;
+        activeDirtyBalances = (wB == dirtyBalancesA) ? dirtyBalancesB : dirtyBalancesA;
+        activeDirtyBitmasks = (wM == dirtyBitmasksA) ? dirtyBitmasksB : dirtyBitmasksA;
+        drainingDirtyBitmasks = wM;
+        drainingDirtyBalances = wB;  // 最後設定，作為 happens-before 門檻
+        return true;
+    }
 
-        if (!dirtyBitmasks.isEmpty()) {
-            org.agrona.collections.LongHashSet.LongIterator iter = dirtyBitmasks.iterator();
-            while (iter.hasNext()) {
-                long userId = iter.nextValue();
-                flushMaskKey.set(userId);
-                flushMaskValue.set(bitmaskCache.get(userId));
-                userAssetBitmaskDiskMap.put(flushMaskKey, flushMaskValue);
-            }
-            dirtyBitmasks.clear();
+    /** flusher thread 呼叫：將 draining dirty 寫入 ChronicleMap，snap 歸還對應 pool */
+    @Override
+    public void drainToDisk() {
+        Long2ObjectHashMap<Balance> dB = drainingDirtyBalances;
+        if (dB == null) return;
+        Long2LongHashMap dM = drainingDirtyBitmasks;
+        ArrayDeque<Balance> retPool = (dB == dirtyBalancesA) ? balanceSnapPoolA : balanceSnapPoolB;
+        if (!dB.isEmpty()) {
+            dB.forEach((combinedKey, snap) -> {
+                flusherBalanceKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
+                balancesDiskMap.put(flusherBalanceKey, snap);
+                retPool.addLast(snap);
+            });
+            dB.clear();
         }
+        if (!dM.isEmpty()) {
+            Long2LongHashMap.EntryIterator iter = dM.entrySet().iterator();
+            while (iter.hasNext()) {
+                iter.next();
+                flusherMaskKey.set(iter.getLongKey());
+                flusherMaskValue.set(iter.getLongValue());
+                userAssetBitmaskDiskMap.put(flusherMaskKey, flusherMaskValue);
+            }
+            dM.clear();
+        }
+        drainingDirtyBitmasks = null;
+        drainingDirtyBalances = null;
     }
 
     private long combine(long userId, int assetId) {
@@ -213,15 +240,17 @@ public class Ledger {
         updateAssetIndex(userId, assetId);
     }
 
-    private void enqueueDirty(long userId, int assetId, Balance b) {
-        if (!b.isDirty()) {
-            if (dirtyCount >= MAX_DIRTY) {
-                log.warn("[LEDGER] Dirty queue is full ({}), triggering emergency flush to disk...", MAX_DIRTY);
-                flush();
-            }
-            dirtyQueue[dirtyCount++] = combine(userId, assetId);
-            b.setDirty(true);
+    private void enqueueDirty(long userId, int assetId, Balance live) {
+        long combinedKey = combine(userId, assetId);
+        // 從 active 緩衝專屬 snap pool 借取（或複用既有 snap 直接更新欄位）
+        ArrayDeque<Balance> pool = (activeDirtyBalances == dirtyBalancesA) ? balanceSnapPoolA : balanceSnapPoolB;
+        Balance snap = activeDirtyBalances.get(combinedKey);
+        if (snap == null) {
+            snap = pool.pollFirst();
+            if (snap == null) snap = new Balance();
+            activeDirtyBalances.put(combinedKey, snap);
         }
+        snap.copyFrom(live);
     }
 
     private void updateAssetIndex(long userId, int assetId) {
@@ -230,7 +259,7 @@ public class Ledger {
         long newMask = mask | (1L << assetId);
         if (mask != newMask) {
             bitmaskCache.put(userId, newMask);
-            dirtyBitmasks.add(userId);
+            activeDirtyBitmasks.put(userId, newMask); // 快照式：直接記錄 userId → 新 bitmask
         }
     }
 
@@ -238,8 +267,8 @@ public class Ledger {
         log.info("--- 執行帳本二級緩存預熱與索引重建 ---");
         bitmaskCache.clear();
         balanceCache.clear();
-        dirtyCount = 0;
-        dirtyBitmasks.clear();
+        activeDirtyBalances.clear();
+        activeDirtyBitmasks.clear();
         balancesDiskMap.forEach((key, diskVal) -> {
             Balance b = new Balance();
             b.copyFrom(diskVal);
@@ -255,11 +284,11 @@ public class Ledger {
             }
         });
         bitmaskCache.forEach((k, v) -> {
-            flushMaskKey.set(k);
-            flushMaskValue.set(v);
-            userAssetBitmaskDiskMap.put(flushMaskKey, flushMaskValue);
+            recoveryMaskKey.set(k);
+            recoveryMaskValue.set(v);
+            userAssetBitmaskDiskMap.put(recoveryMaskKey, recoveryMaskValue);
         });
-        log.info("Ledger 預熱完��，緩存帳戶數: {}", balanceCache.size());
+        log.info("Ledger 預熱完成，緩存帳戶數: {}", balanceCache.size());
     }
 
     public boolean hasAsset(long userId, int assetId) {

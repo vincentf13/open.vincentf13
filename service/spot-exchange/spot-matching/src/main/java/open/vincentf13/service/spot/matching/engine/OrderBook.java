@@ -14,6 +14,7 @@ import org.agrona.collections.LongHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
 
@@ -78,9 +79,13 @@ public class OrderBook {
     private volatile LongHashSet drainingAdds = null;
     private volatile LongHashSet drainingRemovals = null;
 
-    // Note: 終局 Order/Trade 不再歸還 MatchingPool（跨 thread race 難以避免）。
-    // 代價：matching borrowOrder/borrowTrade 在池空時 new 新物件，ZGC 負擔。
-    // 交換：消除 flusher 寫 disk 後 matching 立即 reuse 物件導致活動 buffer 指向過時資料的 race。
+    // 每-緩衝 snap 物件池（零分配重用）
+    // 設計：每個緩衝在 active 時由 matching thread 借取；成為 draining 後由 flusher thread 獨佔寫回。
+    // 歸還與借取是隔離的（同一時刻只有一個 thread 訪問 buffer 的 pool），無需同步。
+    private final ArrayDeque<Order> orderSnapPoolA = new ArrayDeque<>(16384);
+    private final ArrayDeque<Order> orderSnapPoolB = new ArrayDeque<>(16384);
+    private final ArrayDeque<Trade> tradePoolA = new ArrayDeque<>(16384);
+    private final ArrayDeque<Trade> tradePoolB = new ArrayDeque<>(16384);
 
     // 撮合結構
     private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>((LongComparator) (k1, k2) -> Long.compare(k2, k1));
@@ -164,7 +169,9 @@ public class OrderBook {
             if (maker.getUserId() == taker.getUserId()) { makers.pollFirst(); continue; } // 防止自成交
 
             long matchQty = Math.min(taker.remainingQty(), maker.remainingQty());
-            Trade t = MatchingPool.borrowTrade();
+            ArrayDeque<Trade> tPool = (activeTrades == tradesBufA) ? tradePoolA : tradePoolB;
+            Trade t = tPool.pollFirst();
+            if (t == null) t = new Trade();
             t.setTradeId(progress.nextTradeId()); t.setOrderId(maker.getOrderId());
             t.setPrice(price); t.setQty(matchQty); t.setTime(timestamp); t.setLastSeq(gwSeq);
             activeTrades.put(t.getTradeId(), t);
@@ -174,7 +181,10 @@ public class OrderBook {
             StaticMetricsHolder.addCounter(MetricsKey.MATCH_COUNT, 1);
             finalizer.onMatch(t, maker, taker, baseAssetId, quoteAssetId);
 
-            if (maker.remainingQty() == 0) { finalizeOrder(maker, gwSeq); makers.pollFirst(); }
+            if (maker.remainingQty() == 0) {
+                finalizeOrder(maker, gwSeq); makers.pollFirst();
+                MatchingPool.releaseOrder(maker); // maker 終局後不再被 match 迴圈讀取，安全回池
+            }
             else { syncOrder(maker, gwSeq); break; }
         }
         if (makers.isEmpty()) cleanupEmptyLevel(price, counters, levels, makers);
@@ -210,6 +220,8 @@ public class OrderBook {
         orderIndex.remove(o.getOrderId());
         LongHashSet set = userOrdersIndex.get(o.getUserId());
         if (set != null) { set.remove(o.getOrderId()); if (set.isEmpty()) userOrdersIndex.remove(o.getUserId()); }
+        // 池回收：由呼叫端在讀完 `o` 後執行 MatchingPool.releaseOrder(o)，
+        // 避免 cancel 路徑中 caller 繼續讀取已回池物件的風險。
     }
 
     private void syncOrder(Order o, long gwSeq) {
@@ -223,7 +235,10 @@ public class OrderBook {
         if (o.getStatus() != OrderStatus.CANCELED.value()) o.validateState();
         // 深拷貝快照：切斷 matching 對 o 的後續 mutation 與 flusher 讀取的 race，
         // 避免撕裂寫入導致磁碟上出現 "NEW order with filled>0" 這類無法 validateState 的狀態。
-        Order snap = new Order();
+        // snap 物件從 active 緩衝專屬 pool 借取，歸還由 flusher 在 drainToDisk 中完成。
+        ArrayDeque<Order> pool = (activeOrders == ordersBufA) ? orderSnapPoolA : orderSnapPoolB;
+        Order snap = pool.pollFirst();
+        if (snap == null) snap = new Order();
         snap.copyFrom(o);
         activeOrders.put(o.getOrderId(), snap);
         if (!o.isTerminal()) { activeAdds.add(o.getOrderId()); activeRemovals.remove(o.getOrderId()); }
@@ -273,10 +288,14 @@ public class OrderBook {
         LongHashSet dAdd = drainingAdds;
         LongHashSet dRem = drainingRemovals;
 
+        // 歸還目標 pool（draining 緩衝專屬，與 active 隔離）
+        ArrayDeque<Order> retOrderPool = (dO == ordersBufA) ? orderSnapPoolA : orderSnapPoolB;
+        ArrayDeque<Trade> retTradePool = (dT == tradesBufA) ? tradePoolA : tradePoolB;
         if (!dO.isEmpty()) {
             dO.forEach((id, o) -> {
                 fkO.set(id);
                 ordersDisk.put(fkO, o);
+                retOrderPool.addLast(o);
             });
             dO.clear();
         }
@@ -284,6 +303,7 @@ public class OrderBook {
             dT.forEach((id, t) -> {
                 fkT.set(id);
                 tradesDisk.put(fkT, t);
+                retTradePool.addLast(t);
             });
             dT.clear();
         }
