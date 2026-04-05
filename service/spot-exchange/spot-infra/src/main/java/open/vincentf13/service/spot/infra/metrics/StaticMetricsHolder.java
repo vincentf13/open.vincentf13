@@ -65,7 +65,7 @@ public class StaticMetricsHolder {
         return snapshots;
     }
 
-    public record LatencySnapshot(long p50, long p99, long max) {}
+    public record LatencySnapshot(long p50, long p90, long p99, long p999, long max) {}
 
     /**
      * Lock-free 環形延遲採樣窗口
@@ -106,7 +106,9 @@ public class StaticMetricsHolder {
             Arrays.sort(copy);
             return new LatencySnapshot(
                     percentile(copy, 0.50d),
+                    percentile(copy, 0.90d),
                     percentile(copy, 0.99d),
+                    percentile(copy, 0.999d),
                     copy[copy.length - 1]);
         }
 

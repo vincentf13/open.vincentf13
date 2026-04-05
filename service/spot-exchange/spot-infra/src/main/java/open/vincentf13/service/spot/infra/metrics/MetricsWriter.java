@@ -90,7 +90,9 @@ public class MetricsWriter {
         StaticMetricsHolder.snapshotLatencyAndReset().forEach((key, snap) -> {
             long base = key * KEY_UNIT;
             map.put(base + MetricsKey.P50 * PERCENTILE_UNIT + epochSec, snap.p50());
+            map.put(base + MetricsKey.P90 * PERCENTILE_UNIT + epochSec, snap.p90());
             map.put(base + MetricsKey.P99 * PERCENTILE_UNIT + epochSec, snap.p99());
+            map.put(base + MetricsKey.P999 * PERCENTILE_UNIT + epochSec, snap.p999());
             map.put(base + MetricsKey.MAX * PERCENTILE_UNIT + epochSec, snap.max());
         });
     }

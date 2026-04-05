@@ -275,7 +275,9 @@ public class TestVerificationController {
         if (pData == null) return;
         Map<String, Object> sorted = new LinkedHashMap<>();
         if (pData.containsKey(50L))  sorted.put("p50",  pData.get(50L) + " ns");
+        if (pData.containsKey(90L))  sorted.put("p90",  pData.get(90L) + " ns");
         if (pData.containsKey(99L))  sorted.put("p99",  pData.get(99L) + " ns");
+        if (pData.containsKey(999L)) sorted.put("p999", pData.get(999L) + " ns");
         if (pData.containsKey(100L)) sorted.put("p100", pData.get(100L) + " ns");
         target.put(label, sorted);
     }
