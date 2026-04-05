@@ -10,15 +10,12 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
-import net.openhft.affinity.Affinity;
 import org.HdrHistogram.Histogram;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.BitSet;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -46,12 +43,6 @@ public class BenchmarkTool {
     private static int durationSec = 30;
     private static int warmupSec = 5;
 
-    // Benchmark 綁核：從 JVM system property 讀取，由啟動參數 (-Dbench.main.cpu / -Dbench.nio.cpu)
-    // 指定。與 SINGLE_MACHINE_STRESS_TUNE.md 核心分配對齊（預設 13/14）。
-    // 不依賴 PowerShell ProcessorAffinity：Windows 下 thread-level mask 不反映 process-level
-    // 限制，且 NIO worker 啟動太早（Bootstrap.connect）會在 PowerShell 生效前就誤綁到 CPU 0。
-    private static final int MAIN_CPU = Integer.getInteger("bench.main.cpu", 13);
-    private static final int NIO_CPU = Integer.getInteger("bench.nio.cpu", 14);
 
     private static final Histogram histogram = new Histogram(TimeUnit.SECONDS.toNanos(60), 3);
     private static final AtomicLong sentCount = new AtomicLong();
@@ -71,12 +62,9 @@ public class BenchmarkTool {
         System.out.printf("Benchmark: rate=%d/sec, duration=%ds, warmup=%ds%n", targetRate, durationSec, warmupSec);
         System.out.printf("Buyer=%d, Seller=%d, redeposit every %d orders%n", BUYER_ID, SELLER_ID, REDEPOSIT_INTERVAL);
 
-        // 單 channel 只需 1 個 NIO worker，顯式 pin 到 NIO_CPU。
-        ThreadFactory nioTf = r -> new Thread(() -> {
-            pinToCpu(NIO_CPU);
-            r.run();
-        }, "bench-nio");
-        EventLoopGroup group = new NioEventLoopGroup(1, nioTf);
+        // 單 channel 只需 1 個 NIO worker，靠 PowerShell ProcessorAffinity 做 process-level 限制。
+        // 顯式 thread pin 在 Windows + busy-spin 下會與 QPC / scheduler 互動造成不穩，不主動綁。
+        EventLoopGroup group = new NioEventLoopGroup(1);
         CountDownLatch connected = new CountDownLatch(1);
 
         try {
@@ -119,10 +107,6 @@ public class BenchmarkTool {
             byte[] sellBytes = new byte[65];
             buyBuf.position(0); buyBuf.get(buyBytes);
             sellBuf.position(0); sellBuf.get(sellBytes);
-
-            // Pin main 發送 thread 到 MAIN_CPU（NIO worker 已佔 NIO_CPU）
-            // 避免發送 busy-spin 與 NIO I/O thread 互搶 CPU 造成 writeAndFlush 延遲
-            pinToCpu(MAIN_CPU);
 
             // 3. Warmup：以量測速率執行，讓 JIT/GC 充分暖機，避免速率跳躍觸發
             //    GC storm 與 JIT 重編譯污染量測結果。
@@ -215,22 +199,6 @@ public class BenchmarkTool {
         System.out.printf("  max  = %.2f ms%n", histogram.getMaxValue() / 1e6);
         System.out.printf("  mean = %.2f ms%n", histogram.getMean() / 1e6);
         System.out.printf("  samples = %d%n", histogram.getTotalCount());
-    }
-
-    /** 顯式 pin 當前 thread 到指定 CPU，驗證實際運行核心 */
-    private static void pinToCpu(int cpu) {
-        BitSet mask = new BitSet();
-        mask.set(cpu);
-        Affinity.setAffinity(mask);
-        // 觸發 thread 實際遷移：連續讀 getCpu() 確認
-        int actual = -1;
-        for (int retry = 0; retry < 10; retry++) {
-            actual = Affinity.getCpu();
-            if (actual == cpu) break;
-            Thread.onSpinWait();
-        }
-        System.out.printf("[AFFINITY] %s pinned to CPU %d (actual=%d)%n",
-                Thread.currentThread().getName(), cpu, actual);
     }
 
     // ========== SBE encoding ==========

@@ -31,11 +31,6 @@
 -XX:CompileThreshold=1000
 -XX:MaxInlineLevel=15
 
-# --- CPU 綁核（與 SINGLE_MACHINE_STRESS_TUNE.md 對齊，benchmark 分配 CPU 13,14）---
-# 由 Java 直接 pin，避免 Windows PowerShell ProcessorAffinity 在 NIO worker 建立後才生效
--Dbench.main.cpu=13
--Dbench.nio.cpu=14
-
 # --- Netty 優化 ---
 -Dio.netty.allocator.type=pooled
 -Dio.netty.recycler.maxCapacityPerThread=1024
