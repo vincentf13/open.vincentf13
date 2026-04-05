@@ -10,12 +10,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
+import open.vincentf13.service.spot.infra.thread.AffinityUtil;
 import org.HdrHistogram.Histogram;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -62,8 +64,12 @@ public class BenchmarkTool {
         System.out.printf("Buyer=%d, Seller=%d, redeposit every %d orders%n", BUYER_ID, SELLER_ID, REDEPOSIT_INTERVAL);
 
         // 單 channel 只需 1 個 NIO worker；benchmark 綁在 2 核上，1 worker + 1 main busy-spin
-        // 剛好分佔 2 核避免 scheduler 抖動
-        EventLoopGroup group = new NioEventLoopGroup(1);
+        // 剛好分佔 2 核避免 scheduler 抖動。NIO worker 啟動時自動 pin 到下一個可用核心。
+        ThreadFactory nioTf = r -> new Thread(() -> {
+            AffinityUtil.acquireAndBind();
+            r.run();
+        }, "bench-nio");
+        EventLoopGroup group = new NioEventLoopGroup(1, nioTf);
         CountDownLatch connected = new CountDownLatch(1);
 
         try {
@@ -106,6 +112,10 @@ public class BenchmarkTool {
             byte[] sellBytes = new byte[65];
             buyBuf.position(0); buyBuf.get(buyBytes);
             sellBuf.position(0); sellBuf.get(sellBytes);
+
+            // Pin main 發送 thread 到另一個核心（NIO worker 已佔一核）
+            // 避免發送 busy-spin 與 NIO I/O thread 互搶 CPU 造成 writeAndFlush 延遲
+            AffinityUtil.acquireAndBind();
 
             // 3. Warmup：以量測速率執行，讓 JIT/GC 充分暖機，避免速率跳躍觸發
             //    GC storm 與 JIT 重編譯污染量測結果。
