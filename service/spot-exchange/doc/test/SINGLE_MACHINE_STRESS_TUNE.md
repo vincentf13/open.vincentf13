@@ -159,7 +159,7 @@ Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
 
 # Benchmark 參數：rate(orders/sec) duration(sec) warmup(sec)
 $bench_args = @(
-    "@$doc_path\jvm\ws-api-throughput.args",
+    "@$doc_path\jvm\benchmark-low-latency.args",
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
     "60000",   # 6萬 orders/sec

@@ -1,0 +1,38 @@
+# --- 模組存取權限 (Netty 必需) ---
+--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED
+--add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
+--add-opens=java.base/java.lang=ALL-UNNAMED
+
+# --- GC：ZGC 低停頓，消除量測噪音 ---
+-XX:+UseZGC
+-XX:-ZProactive
+-XX:ZUncommitDelay=3600
+-XX:ParallelGCThreads=2
+-XX:ConcGCThreads=1
+
+# --- 小 heap 足夠，benchmark 壓力有限 ---
+-Xms2g
+-Xmx2g
+-XX:+AlwaysPreTouch
+-XX:+UseLargePages
+-XX:MaxDirectMemorySize=1g
+
+# --- 降低測量抖動 ---
+-XX:+UseNUMA
+-XX:+PerfDisableSharedMem
+-XX:+UnlockDiagnosticVMOptions
+-XX:GuaranteedSafepointInterval=0
+
+# --- JIT 快速 tier-4 編譯，消除 warmup 期的 C1→C2 切換抖動 ---
+-XX:+TieredCompilation
+-XX:TieredStopAtLevel=4
+-XX:CICompilerCount=4
+-XX:CompileThreshold=1000
+-XX:MaxInlineLevel=15
+
+# --- Netty 優化 ---
+-Dio.netty.allocator.type=pooled
+-Dio.netty.recycler.maxCapacityPerThread=1024
+-Djava.net.preferIPv4Stack=true
+-Dfile.encoding=UTF-8

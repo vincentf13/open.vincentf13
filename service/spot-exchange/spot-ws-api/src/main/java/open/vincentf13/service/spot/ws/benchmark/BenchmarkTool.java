@@ -99,10 +99,16 @@ public class BenchmarkTool {
             initOrderTemplate(buyBuf, BUYER_ID, 1001, 60000L * SCALE, 1000L);
             initOrderTemplate(sellBuf, SELLER_ID, 1001, 60000L * SCALE, 1000L);
 
+            // 預拷貝到 byte[] 作為 bulk-copy 源，避免每訊息 65 次單 byte 讀寫
+            byte[] buyBytes = new byte[65];
+            byte[] sellBytes = new byte[65];
+            buyBuf.position(0); buyBuf.get(buyBytes);
+            sellBuf.position(0); sellBuf.get(sellBytes);
+
             // 3. Warmup：以量測速率執行，讓 JIT/GC 充分暖機，避免速率跳躍觸發
             //    GC storm 與 JIT 重編譯污染量測結果。
             System.out.printf("Warmup %ds at %,d/sec...%n", warmupSec, targetRate);
-            sendAtRate(ch, buyBuf, sellBuf, targetRate, warmupSec, false);
+            sendAtRate(ch, buyBytes, sellBytes, targetRate, warmupSec, false);
 
             // 4. Measure
             histogram.reset();
@@ -110,7 +116,7 @@ public class BenchmarkTool {
             recvCount.set(0);
             measuring = true;
             System.out.printf("Measuring %ds at %d/sec...%n", durationSec, targetRate);
-            sendAtRate(ch, buyBuf, sellBuf, targetRate, durationSec, true);
+            sendAtRate(ch, buyBytes, sellBytes, targetRate, durationSec, true);
             measuring = false;
 
             Thread.sleep(3000);
@@ -138,7 +144,7 @@ public class BenchmarkTool {
     }
 
     /** 令牌桶恆定速率發送，買賣交替，定期補充餘額 */
-    private static void sendAtRate(Channel ch, ByteBuffer buyBuf, ByteBuffer sellBuf,
+    private static void sendAtRate(Channel ch, byte[] buyBytes, byte[] sellBytes,
                                    int rate, int seconds, boolean count) {
         long intervalNs = 1_000_000_000L / rate;
         long total = (long) rate * seconds;
@@ -153,14 +159,13 @@ public class BenchmarkTool {
             }
 
             long sendNano = System.nanoTime();
-            ByteBuffer template = isBuy ? buyBuf : sellBuf;
+            byte[] src = isBuy ? buyBytes : sellBytes;
 
             // 每條訊息配獨立 ByteBuf（pooled），避免 Netty async send 時底層記憶體被覆蓋
             ByteBuf out = alloc.directBuffer(65, 65);
-            template.position(0);
-            for (int j = 0; j < 65; j++) out.writeByte(template.get(j));
-            out.setLongLE(20, sendNano);  // timestamp (overwrite in out, LITTLE_ENDIAN to match SBE)
-            out.setLongLE(57, sendNano);  // clientOrderId = sendNano
+            out.writeBytes(src);             // bulk memcpy，一次 JNI 呼叫取代 65 次 writeByte
+            out.setLongLE(20, sendNano);     // timestamp (LITTLE_ENDIAN，SBE 格式)
+            out.setLongLE(57, sendNano);     // clientOrderId = sendNano
 
             ch.writeAndFlush(new BinaryWebSocketFrame(out));
 
