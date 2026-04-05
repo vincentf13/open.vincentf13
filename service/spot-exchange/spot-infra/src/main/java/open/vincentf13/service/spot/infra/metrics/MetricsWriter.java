@@ -38,6 +38,20 @@ public class MetricsWriter {
         MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE,
     };
 
+    // Counter 歷史 key 編碼：counterKey * DUTY_KEY_UNIT + epochSecond （與 duty cycle 共用編碼單元）
+    private static final long[] COUNTER_KEYS = {
+        MetricsKey.NETTY_RECV_COUNT,
+        MetricsKey.GATEWAY_WAL_WRITE_COUNT,
+        MetricsKey.AERON_SEND_COUNT,
+        MetricsKey.AERON_BACKPRESSURE,
+        MetricsKey.AERON_RECV_COUNT,
+        MetricsKey.AERON_DROPPED_COUNT,
+        MetricsKey.ORDER_ACCEPTED_COUNT,
+        MetricsKey.ORDER_REJECTED_COUNT,
+        MetricsKey.ORDER_DUPLICATE_COUNT,
+        MetricsKey.REPORT_RECV_COUNT,
+    };
+
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "metrics-writer");
         t.setDaemon(true);
@@ -59,6 +73,7 @@ public class MetricsWriter {
             flushLatencies(s, now);
             flushTps(s, now);
             flushDutyCycles(s, now);
+            flushCounters(s, now);
             flushGcEvents(s);
         } catch (Exception e) {
             log.error("Metrics tick failed", e);
@@ -91,6 +106,15 @@ public class MetricsWriter {
         for (long dutyKey : DUTY_CYCLE_KEYS) {
             AtomicLong v = StaticMetricsHolder.values().get(dutyKey);
             if (v != null) map.put(dutyKey * DUTY_KEY_UNIT + epochSec, v.get());
+        }
+    }
+
+    private void flushCounters(Storage s, long now) {
+        long epochSec = now / 1000;
+        ChronicleMap<Long, Long> map = s.counterHistory();
+        for (long counterKey : COUNTER_KEYS) {
+            AtomicLong v = StaticMetricsHolder.values().get(counterKey);
+            if (v != null) map.put(counterKey * DUTY_KEY_UNIT + epochSec, v.get());
         }
     }
 

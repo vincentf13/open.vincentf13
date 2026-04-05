@@ -39,6 +39,7 @@ public class Storage {
     private final ChronicleMap<Long, Long> tpsHistory;
     private final ChronicleMap<Long, Long> latencyHistory;
     private final ChronicleMap<Long, Long> dutyCycleHistory;
+    private final ChronicleMap<Long, Long> counterHistory;
     private final ChronicleMap<Long, String> gcEventHistory;
 
     private final ChronicleQueue gatewaySenderWal;
@@ -61,6 +62,7 @@ public class Storage {
             this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400 * 7, 8, 8);
             this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 86400 * 7, 8, 8);
             this.dutyCycleHistory = createMap("metrics-duty-cycle-history", Long.class, Long.class, 86400 * 7, 8, 8);
+            this.counterHistory = createMap("metrics-counter-history", Long.class, Long.class, 86400 * 7, 8, 8);
             this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 2048, 8, 256);
             
             this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
@@ -86,6 +88,7 @@ public class Storage {
     public ChronicleMap<Long, Long> tpsHistory() { return tpsHistory; }
     public ChronicleMap<Long, Long> latencyHistory() { return latencyHistory; }
     public ChronicleMap<Long, Long> dutyCycleHistory() { return dutyCycleHistory; }
+    public ChronicleMap<Long, Long> counterHistory() { return counterHistory; }
     public ChronicleMap<Long, String> gcEventHistory() { return gcEventHistory; }
     public ChronicleQueue gatewaySenderWal() { return gatewaySenderWal; }
 
@@ -155,7 +158,7 @@ public class Storage {
             safeClose(orders); safeClose(trades); safeClose(balances); safeClose(userAssets);
             safeClose(activeOrders); safeClose(cids);
             safeClose(msgMetadata); safeClose(walMetadata); safeClose(latestMetrics);
-            safeClose(tpsHistory); safeClose(latencyHistory); safeClose(dutyCycleHistory); safeClose(gcEventHistory);
+            safeClose(tpsHistory); safeClose(latencyHistory); safeClose(dutyCycleHistory); safeClose(counterHistory); safeClose(gcEventHistory);
             if (gatewaySenderWal != null) gatewaySenderWal.close();
             INSTANCE = null;
         }

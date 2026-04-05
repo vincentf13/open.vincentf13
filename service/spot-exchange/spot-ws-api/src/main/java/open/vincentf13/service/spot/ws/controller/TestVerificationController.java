@@ -53,6 +53,7 @@ public class TestVerificationController {
     public Map<String, Object> getSaturation() {
         Map<String, Object> m = new LinkedHashMap<>();
         putCounterMetrics(m);
+        m.put("counter_history", getCounterHistory());
         m.put("duty_cycle_history", getDutyCycleHistory());
         putJvmMetrics(m);
         m.put("cpu_affinity_history", buildCpuAffinityHistory());
@@ -145,6 +146,60 @@ public class TestVerificationController {
             parts.length > 1 ? parts[1] : "",
             parts.length > 2 ? parts[2] : ""
         };
+    }
+
+    private static final long COUNTER_KEY_UNIT = 1_000_000_000_000L;
+    private record CounterMetric(String name, long key) {}
+    private static final List<CounterMetric> COUNTER_METRICS = List.of(
+        new CounterMetric("netty_recv", MetricsKey.NETTY_RECV_COUNT),
+        new CounterMetric("wal_write", MetricsKey.GATEWAY_WAL_WRITE_COUNT),
+        new CounterMetric("aeron_send", MetricsKey.AERON_SEND_COUNT),
+        new CounterMetric("aeron_send_backpressure", MetricsKey.AERON_BACKPRESSURE),
+        new CounterMetric("aeron_recv", MetricsKey.AERON_RECV_COUNT),
+        new CounterMetric("aeron_dropped", MetricsKey.AERON_DROPPED_COUNT),
+        new CounterMetric("order_accepted", MetricsKey.ORDER_ACCEPTED_COUNT),
+        new CounterMetric("order_rejected", MetricsKey.ORDER_REJECTED_COUNT),
+        new CounterMetric("order_duplicate", MetricsKey.ORDER_DUPLICATE_COUNT),
+        new CounterMetric("report_recv", MetricsKey.REPORT_RECV_COUNT)
+    );
+
+    private List<Map<String, Object>> getCounterHistory() {
+        // 將扁平的 (counterKey * UNIT + epochSec) -> total 資料，重新按秒聚合並計算每秒增量
+        TreeMap<Long, Map<String, Long>> bySec = new TreeMap<>();
+        Storage.self().counterHistory().forEach((k, total) -> {
+            long counterKey = k / COUNTER_KEY_UNIT;
+            long epochSec = k % COUNTER_KEY_UNIT;
+            String label = counterKeyToLabel(counterKey);
+            if (label != null) {
+                bySec.computeIfAbsent(epochSec, s -> new LinkedHashMap<>()).put(label, total);
+            }
+        });
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Long> prevTotals = null;
+        // 升序累積以計算增量，最後反向輸出（最新在前）
+        List<Map<String, Object>> ordered = new ArrayList<>();
+        for (var entry : bySec.entrySet()) {
+            if (prevTotals == null) { prevTotals = entry.getValue(); continue; }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
+            Map<String, Long> curr = entry.getValue();
+            for (var cm : COUNTER_METRICS) {
+                Long now = curr.get(cm.name());
+                Long prev = prevTotals.get(cm.name());
+                long delta = (now != null && prev != null) ? Math.max(0, now - prev) : 0L;
+                row.put(cm.name(), delta);
+            }
+            ordered.add(row);
+            prevTotals = curr;
+        }
+        for (int i = ordered.size() - 1; i >= 0; i--) result.add(ordered.get(i));
+        return result;
+    }
+
+    private String counterKeyToLabel(long key) {
+        for (var cm : COUNTER_METRICS) if (cm.key() == key) return cm.name();
+        return null;
     }
 
     private List<Map<String, Object>> getDutyCycleHistory() {
