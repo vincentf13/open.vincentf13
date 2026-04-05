@@ -37,6 +37,8 @@
 -XX:ParallelGCThreads=4
 -XX:ConcGCThreads=2
 -XX:ZAllocationSpikeTolerance=5.0
+# 關閉 ZGC 主動 GC：8GB heap + 低分配率下不需要 proactive cycle
+-XX:-ZProactive
 
 # --- 記憶體配置 (8GB Heap + 8GB Direct) ---
 -Xms8G
