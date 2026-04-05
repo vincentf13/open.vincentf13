@@ -164,7 +164,7 @@ $bench_args = @(
     "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
     "60000",   # 6萬 orders/sec
     "60",     # 60秒測量
-    "20"       # 20秒預熱（使用量測速率暖機）
+    "60"       # 60秒預熱（完整消耗 ZGC Warmup Major cycles）
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
 Start-Sleep -Milliseconds 500
