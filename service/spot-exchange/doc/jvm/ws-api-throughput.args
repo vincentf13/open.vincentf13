@@ -34,8 +34,9 @@
 -XX:+UseZGC
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
--XX:ParallelGCThreads=8
--XX:ConcGCThreads=4
+# Gateway 8 核心，GC 執行緒數降低避免搶佔 busy-spin worker
+-XX:ParallelGCThreads=4
+-XX:ConcGCThreads=2
 # 提高突發分配耐受度
 -XX:ZAllocationSpikeTolerance=5.0
 

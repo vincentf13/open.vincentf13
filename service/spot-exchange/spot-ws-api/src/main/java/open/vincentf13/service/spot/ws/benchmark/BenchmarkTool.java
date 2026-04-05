@@ -42,7 +42,7 @@ public class BenchmarkTool {
     private static int durationSec = 30;
     private static int warmupSec = 5;
 
-    private static final Histogram histogram = new Histogram(TimeUnit.SECONDS.toNanos(10), 3);
+    private static final Histogram histogram = new Histogram(TimeUnit.SECONDS.toNanos(60), 3);
     private static final AtomicLong sentCount = new AtomicLong();
     private static final AtomicLong recvCount = new AtomicLong();
     private static final AtomicLong acceptedCount = new AtomicLong();
@@ -98,9 +98,10 @@ public class BenchmarkTool {
             initOrderTemplate(buyBuf, BUYER_ID, 1001, 60000L * SCALE, 1000L);
             initOrderTemplate(sellBuf, SELLER_ID, 1001, 60000L * SCALE, 1000L);
 
-            // 3. Warmup
-            System.out.printf("Warmup %ds...%n", warmupSec);
-            sendAtRate(ch, buyBuf, sellBuf, targetRate, warmupSec, false);
+            // 3. Warmup (cap at 30K/sec to avoid flooding buffers before measurement)
+            int warmupRate = Math.min(targetRate, 30_000);
+            System.out.printf("Warmup %ds at %,d/sec...%n", warmupSec, warmupRate);
+            sendAtRate(ch, buyBuf, sellBuf, warmupRate, warmupSec, false);
 
             // 4. Measure
             histogram.reset();
@@ -277,7 +278,7 @@ public class BenchmarkTool {
                 long clientOrderId = extractClientOrderId(msgType, content);
                 if (clientOrderId > 0) {
                     long roundTrip = System.nanoTime() - clientOrderId;
-                    if (roundTrip > 0 && roundTrip < TimeUnit.SECONDS.toNanos(10)) {
+                    if (roundTrip > 0 && roundTrip < TimeUnit.SECONDS.toNanos(60)) {
                         histogram.recordValue(roundTrip);
                     }
                     recvCount.incrementAndGet();
