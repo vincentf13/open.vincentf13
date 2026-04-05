@@ -8,52 +8,137 @@ import open.vincentf13.service.spot.model.CidKey;
 /**
  * 冪等性守衛 (Idempotency Guard)
  *
- * 職責：透過記憶體環形緩衝 + 磁碟 CID Map 兩級去重，
- * 防止同一 (userId, clientOrderId) 重複下單。
- * 單線程存取（matching thread），Zero-GC 設計。
+ * 職責：透過記憶體環形緩衝 + 磁碟 CID Map 兩級去重。
+ *
+ * 雙緩衝非同步落盤：
+ * - matching thread 寫入 active 緩衝；當 active 滿時呼叫 rotate 翻轉指針
+ * - flusher thread 透過 drainToDisk 將 draining 緩衝寫入 ChronicleMap
+ * - isDuplicate 同時檢查兩個緩衝 + 磁碟，保證在途訂單不被誤判為重複
  */
-public class IdempotencyGuard {
-    private static final int BUFFER_SIZE = 4096;
-    private final long[] pendingUids = new long[BUFFER_SIZE];
-    private final long[] pendingCids = new long[BUFFER_SIZE];
-    private final long[] pendingOids = new long[BUFFER_SIZE];
-    private int count = 0;
+public class IdempotencyGuard implements DiskSink {
+    private static final int BUFFER_SIZE = 65536;
+
+    private static final class Buffer {
+        final long[] uids = new long[BUFFER_SIZE];
+        final long[] cids = new long[BUFFER_SIZE];
+        final long[] oids = new long[BUFFER_SIZE];
+        int count = 0;
+    }
+
+    private final Buffer bufA = new Buffer();
+    private final Buffer bufB = new Buffer();
+    private Buffer active = bufA;              // 只由 matching thread 寫入
+    private volatile Buffer draining = null;   // 由 matching 寫入，flusher 讀後 null
 
     private final ChronicleMap<CidKey, LongValue> diskMap = Storage.self().clientOrderIdMap();
-    private final CidKey reusableKey = new CidKey();
-    private final LongValue reusableValue = new LongValue();
 
-    /** 檢查是否為重複指令 (先查緩衝，再查磁碟) */
+    // matching thread 專用 key/value（單執行緒，不競爭）
+    private final CidKey matchingKey = new CidKey();
+
+    // flusher thread 專用 key/value
+    private final CidKey flusherKey = new CidKey();
+    private final LongValue flusherValue = new LongValue();
+
+    /** 檢查是否為重複指令（matching thread 呼叫）：先查 active + draining 緩衝，再查磁碟 */
     public boolean isDuplicate(long userId, long clientOrderId) {
-        for (int i = 0; i < count; i++) {
-            if (pendingUids[i] == userId && pendingCids[i] == clientOrderId) return true;
+        // 1. 查 active（當前 matching thread 正在寫入的緩衝）
+        Buffer a = active;
+        for (int i = 0; i < a.count; i++) {
+            if (a.uids[i] == userId && a.cids[i] == clientOrderId) return true;
         }
-        reusableKey.set(userId, clientOrderId);
-        return diskMap.containsKey(reusableKey);
+        // 2. 查 draining（等待 flusher 寫入磁碟的緩衝，仍算在途）
+        Buffer d = draining;
+        if (d != null) {
+            for (int i = 0; i < d.count; i++) {
+                if (d.uids[i] == userId && d.cids[i] == clientOrderId) return true;
+            }
+        }
+        // 3. 查磁碟
+        matchingKey.set(userId, clientOrderId);
+        return diskMap.containsKey(matchingKey);
     }
 
-    /** 記錄新的冪等映射 (userId, clientOrderId) → orderId */
+    /** 記錄新的冪等映射（matching thread 呼叫） */
     public void record(long userId, long clientOrderId, long orderId) {
-        if (count >= BUFFER_SIZE) flush();
-        pendingUids[count] = userId;
-        pendingCids[count] = clientOrderId;
-        pendingOids[count] = orderId;
-        count++;
-    }
-
-    /** 批量寫入磁碟 */
-    public void flush() {
-        for (int i = 0; i < count; i++) {
-            reusableKey.set(pendingUids[i], pendingCids[i]);
-            reusableValue.set(pendingOids[i]);
-            diskMap.put(reusableKey, reusableValue);
+        if (active.count >= BUFFER_SIZE) {
+            // 極端情況：flusher 落後，緩衝寫滿。強制等待翻轉（短暫 spin）
+            forceRotateOrInlineFlush();
         }
-        count = 0;
+        active.uids[active.count] = userId;
+        active.cids[active.count] = clientOrderId;
+        active.oids[active.count] = orderId;
+        active.count++;
     }
 
-    /** 冷啟動清空 */
+    /** matching thread 呼叫：若 draining 已清空，將 active 翻轉為 draining */
+    @Override
+    public boolean rotate() {
+        if (draining != null) return false;     // flusher 尚未完成上一輪
+        if (active.count == 0) return false;    // 無待寫資料
+        Buffer wasActive = active;
+        active = (active == bufA) ? bufB : bufA;
+        // 切換後的 active 必為空（flusher 已 clear）或首次使用
+        draining = wasActive;                    // volatile write，發布給 flusher
+        return true;
+    }
+
+    /** flusher thread 呼叫：將 draining 緩衝寫入 ChronicleMap，完成後釋放 */
+    @Override
+    public void drainToDisk() {
+        Buffer d = draining;
+        if (d == null) return;
+        for (int i = 0; i < d.count; i++) {
+            flusherKey.set(d.uids[i], d.cids[i]);
+            flusherValue.set(d.oids[i]);
+            diskMap.put(flusherKey, flusherValue);
+        }
+        d.count = 0;
+        draining = null;                         // volatile write，釋放給 matching
+    }
+
+    /** 冷啟動清空（recovery 路徑呼叫） */
     public void clearDisk() {
         diskMap.clear();
-        count = 0;
+        active.count = 0;
+        Buffer d = draining;
+        if (d != null) d.count = 0;
+        draining = null;
+    }
+
+    /** 同步 flush 所有 active 緩衝內容至磁碟（僅 recovery 冷啟動階段使用，單執行緒環境） */
+    public void flushInlineForRecovery() {
+        if (active.count == 0) return;
+        // 使用獨立 key/value 避免與 flusher thread 共用 reusable 物件
+        CidKey recoveryKey = new CidKey();
+        LongValue recoveryValue = new LongValue();
+        for (int i = 0; i < active.count; i++) {
+            recoveryKey.set(active.uids[i], active.cids[i]);
+            recoveryValue.set(active.oids[i]);
+            diskMap.put(recoveryKey, recoveryValue);
+        }
+        active.count = 0;
+    }
+
+    /** 緊急情況：active 寫滿但 flusher 尚未處理。spin 等 flusher 完成；極端超時才 fallback */
+    private void forceRotateOrInlineFlush() {
+        // 長時間 spin 等待 flusher 完成（20ms 內 flusher 至少跑一輪；10000 iterations ~= ms 級）
+        for (int spin = 0; spin < 10000; spin++) {
+            if (draining == null) {
+                Buffer wasActive = active;
+                active = (active == bufA) ? bufB : bufA;
+                draining = wasActive;
+                return;
+            }
+            Thread.onSpinWait();
+        }
+        // 極端 fallback：flusher 卡死才走到這裡。使用獨立 key 避免與 flusher 共用狀態
+        CidKey fallbackKey = new CidKey();
+        LongValue fallbackValue = new LongValue();
+        for (int i = 0; i < active.count; i++) {
+            fallbackKey.set(active.uids[i], active.cids[i]);
+            fallbackValue.set(active.oids[i]);
+            diskMap.put(fallbackKey, fallbackValue);
+        }
+        active.count = 0;
     }
 }

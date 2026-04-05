@@ -39,7 +39,8 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     // ========== 公開 API ==========
 
-    public void flush() { idempotencyGuard.flush(); }
+    /** 暴露給 Engine 註冊至 AsyncDiskFlusher */
+    public IdempotencyGuard getIdempotencyGuard() { return idempotencyGuard; }
 
     /** 冷啟動：全量磁碟掃描恢復 OrderBook + IdempotencyGuard */
     public long coldStartRebuild() {
@@ -65,7 +66,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 OrderBook.get(order.getSymbolId()).recoverOrder(order);
             }
         });
-        idempotencyGuard.flush();
+        idempotencyGuard.flushInlineForRecovery();
         return maxOrderId[0];
     }
 

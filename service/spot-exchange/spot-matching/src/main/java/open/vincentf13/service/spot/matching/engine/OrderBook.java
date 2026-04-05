@@ -59,10 +59,28 @@ public class OrderBook {
     private final ChronicleMap<LongValue, Boolean> activeDisk = Storage.self().activeOrders();
     private final ChronicleMap<LongValue, Trade> tradesDisk = Storage.self().trades();
 
-    // 批次寫入緩衝
-    private final Long2ObjectHashMap<Order> pendingOrders = new Long2ObjectHashMap<>(16384, 0.5f);
-    private final Long2ObjectHashMap<Trade> pendingTrades = new Long2ObjectHashMap<>(32768, 0.5f);
-    private final LongHashSet pendingAdds = new LongHashSet(8192), pendingRemovals = new LongHashSet(8192);
+    // 批次寫入緩衝（雙緩衝：matching 寫 active，flusher 讀 draining）
+    private final Long2ObjectHashMap<Order> ordersBufA = new Long2ObjectHashMap<>(65536, 0.5f);
+    private final Long2ObjectHashMap<Order> ordersBufB = new Long2ObjectHashMap<>(65536, 0.5f);
+    private final Long2ObjectHashMap<Trade> tradesBufA = new Long2ObjectHashMap<>(65536, 0.5f);
+    private final Long2ObjectHashMap<Trade> tradesBufB = new Long2ObjectHashMap<>(65536, 0.5f);
+    private final LongHashSet addsBufA = new LongHashSet(32768), addsBufB = new LongHashSet(32768);
+    private final LongHashSet removalsBufA = new LongHashSet(32768), removalsBufB = new LongHashSet(32768);
+
+    private Long2ObjectHashMap<Order> activeOrders = ordersBufA;
+    private Long2ObjectHashMap<Trade> activeTrades = tradesBufA;
+    private LongHashSet activeAdds = addsBufA;
+    private LongHashSet activeRemovals = removalsBufA;
+
+    // volatile：matching 發布 draining 指針給 flusher 讀取
+    private volatile Long2ObjectHashMap<Order> drainingOrders = null;
+    private volatile Long2ObjectHashMap<Trade> drainingTrades = null;
+    private volatile LongHashSet drainingAdds = null;
+    private volatile LongHashSet drainingRemovals = null;
+
+    // Note: 終局 Order/Trade 不再歸還 MatchingPool（跨 thread race 難以避免）。
+    // 代價：matching borrowOrder/borrowTrade 在池空時 new 新物件，ZGC 負擔。
+    // 交換：消除 flusher 寫 disk 後 matching 立即 reuse 物件導致活動 buffer 指向過時資料的 race。
 
     // 撮合結構
     private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>((LongComparator) (k1, k2) -> Long.compare(k2, k1));
@@ -72,10 +90,10 @@ public class OrderBook {
     private final Long2ObjectHashMap<Order> orderIndex = new Long2ObjectHashMap<>(MatchingConfig.INITIAL_BOOK_ORDER_COUNT, 0.5f);
     private final Long2ObjectHashMap<LongHashSet> userOrdersIndex = new Long2ObjectHashMap<>(4096, 0.5f);
 
-    // Flush 用可重用 Key
-    private final LongValue kO = new LongValue();
-    private final LongValue kT = new LongValue();
-    private final LongValue kA = new LongValue();
+    // Flush 用可重用 Key（flusher thread 專用）
+    private final LongValue fkO = new LongValue();
+    private final LongValue fkT = new LongValue();
+    private final LongValue fkA = new LongValue();
 
     private OrderBook(int symbolId, int baseAssetId, int quoteAssetId) {
         this.symbolId = symbolId;
@@ -149,7 +167,7 @@ public class OrderBook {
             Trade t = MatchingPool.borrowTrade();
             t.setTradeId(progress.nextTradeId()); t.setOrderId(maker.getOrderId());
             t.setPrice(price); t.setQty(matchQty); t.setTime(timestamp); t.setLastSeq(gwSeq);
-            pendingTrades.put(t.getTradeId(), t);
+            activeTrades.put(t.getTradeId(), t);
 
             maker.setFilled(maker.getFilled() + matchQty);
             taker.setFilled(taker.getFilled() + matchQty);
@@ -203,9 +221,13 @@ public class OrderBook {
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
         if (o.getStatus() != OrderStatus.CANCELED.value()) o.validateState();
-        pendingOrders.put(o.getOrderId(), o);
-        if (!o.isTerminal()) { pendingAdds.add(o.getOrderId()); pendingRemovals.remove(o.getOrderId()); }
-        else { pendingRemovals.add(o.getOrderId()); pendingAdds.remove(o.getOrderId()); }
+        // 深拷貝快照：切斷 matching 對 o 的後續 mutation 與 flusher 讀取的 race，
+        // 避免撕裂寫入導致磁碟上出現 "NEW order with filled>0" 這類無法 validateState 的狀態。
+        Order snap = new Order();
+        snap.copyFrom(o);
+        activeOrders.put(o.getOrderId(), snap);
+        if (!o.isTerminal()) { activeAdds.add(o.getOrderId()); activeRemovals.remove(o.getOrderId()); }
+        else { activeRemovals.add(o.getOrderId()); activeAdds.remove(o.getOrderId()); }
     }
 
     private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counters,
@@ -220,32 +242,66 @@ public class OrderBook {
 
     // ========== 持久化 ==========
 
-    public void flush() {
-        if (!pendingOrders.isEmpty()) {
-            pendingOrders.forEach((id, o) -> {
-                kO.set(id);
-                ordersDisk.put(kO, o);
-                if (o.isTerminal()) MatchingPool.releaseOrder(o);
-            });
-            pendingOrders.clear();
-        }
-        if (!pendingTrades.isEmpty()) {
-            pendingTrades.forEach((id, t) -> {
-                kT.set(id);
-                tradesDisk.put(kT, t);
-                MatchingPool.releaseTrade(t);
-            });
-            pendingTrades.clear();
-        }
-        if (!pendingAdds.isEmpty()) {
-            pendingAdds.forEach(id -> { kA.set(id); activeDisk.put(kA, Boolean.TRUE); });
-            pendingAdds.clear();
-        }
-        if (!pendingRemovals.isEmpty()) {
-            pendingRemovals.forEach(id -> { kA.set(id); activeDisk.remove(kA); });
-            pendingRemovals.clear();
-        }
+    /** matching thread 呼叫：將 active 四個緩衝翻轉為 draining，指針操作 ns 級 */
+    public boolean rotate() {
+        if (drainingOrders != null) return false;  // flusher 尚未完成上一輪
+        if (activeOrders.isEmpty() && activeTrades.isEmpty()
+                && activeAdds.isEmpty() && activeRemovals.isEmpty()) return false;
+        // 先儲存 active 引用
+        Long2ObjectHashMap<Order> wO = activeOrders;
+        Long2ObjectHashMap<Trade> wT = activeTrades;
+        LongHashSet wAdd = activeAdds;
+        LongHashSet wRem = activeRemovals;
+        // 翻轉 active 至另一組緩衝
+        activeOrders = (wO == ordersBufA) ? ordersBufB : ordersBufA;
+        activeTrades = (wT == tradesBufA) ? tradesBufB : tradesBufA;
+        activeAdds = (wAdd == addsBufA) ? addsBufB : addsBufA;
+        activeRemovals = (wRem == removalsBufA) ? removalsBufB : removalsBufA;
+        // 發布 draining 指針（volatile store 保證所有先前 mutation 對 flusher 可見）
+        drainingTrades = wT;
+        drainingAdds = wAdd;
+        drainingRemovals = wRem;
+        drainingOrders = wO;  // 最後設定 orders，作為 flusher 的 happens-before 門檻
+        return true;
     }
+
+    /** flusher thread 呼叫：將 draining 緩衝寫入 ChronicleMap，完成後釋放 */
+    public void drainToDisk() {
+        Long2ObjectHashMap<Order> dO = drainingOrders;
+        if (dO == null) return;  // 無待落盤資料
+        Long2ObjectHashMap<Trade> dT = drainingTrades;
+        LongHashSet dAdd = drainingAdds;
+        LongHashSet dRem = drainingRemovals;
+
+        if (!dO.isEmpty()) {
+            dO.forEach((id, o) -> {
+                fkO.set(id);
+                ordersDisk.put(fkO, o);
+            });
+            dO.clear();
+        }
+        if (!dT.isEmpty()) {
+            dT.forEach((id, t) -> {
+                fkT.set(id);
+                tradesDisk.put(fkT, t);
+            });
+            dT.clear();
+        }
+        if (!dAdd.isEmpty()) {
+            dAdd.forEach(id -> { fkA.set(id); activeDisk.put(fkA, Boolean.TRUE); });
+            dAdd.clear();
+        }
+        if (!dRem.isEmpty()) {
+            dRem.forEach(id -> { fkA.set(id); activeDisk.remove(fkA); });
+            dRem.clear();
+        }
+        // 釋放順序與 rotate 相反：先清其他，最後清 orders（發布給 matching 下一輪 rotate）
+        drainingTrades = null;
+        drainingAdds = null;
+        drainingRemovals = null;
+        drainingOrders = null;
+    }
+
 
     // ========== Accessors ==========
 
