@@ -69,6 +69,7 @@ public class TestVerificationController {
         target.put("aeron_dropped", get(MetricsKey.AERON_DROPPED_COUNT));
         target.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
+        target.put("order_duplicate", get(MetricsKey.ORDER_DUPLICATE_COUNT));
         target.put("report_recv", get(MetricsKey.REPORT_RECV_COUNT));
         target.put("gateway_wal_writer_duty_cycle", get(MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE) + "%");
         target.put("gateway_sender_duty_cycle", get(MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) + "%");

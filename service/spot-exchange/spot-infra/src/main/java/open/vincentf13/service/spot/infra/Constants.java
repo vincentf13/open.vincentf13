@@ -124,6 +124,7 @@ public class Constants {
         public static final long MATCH_COUNT = 9L;
         public static final long ORDER_ACCEPTED_COUNT = 12L;
         public static final long ORDER_REJECTED_COUNT = 13L;
+        public static final long ORDER_DUPLICATE_COUNT = 17L;
         public static final long ORDER_PROCESSED_COUNT = 14L;
         public static final long REPORT_RECV_COUNT = 16L;
 

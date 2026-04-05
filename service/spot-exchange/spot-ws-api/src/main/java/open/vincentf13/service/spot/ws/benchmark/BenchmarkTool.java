@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.ws.benchmark;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -143,6 +144,7 @@ public class BenchmarkTool {
         long total = (long) rate * seconds;
         long startNs = System.nanoTime();
         boolean isBuy = true;
+        PooledByteBufAllocator alloc = PooledByteBufAllocator.DEFAULT;
 
         for (long i = 0; i < total; i++) {
             // 定期補充餘額
@@ -151,13 +153,16 @@ public class BenchmarkTool {
             }
 
             long sendNano = System.nanoTime();
-            ByteBuffer buf = isBuy ? buyBuf : sellBuf;
+            ByteBuffer template = isBuy ? buyBuf : sellBuf;
 
-            buf.putLong(20, sendNano);       // timestamp
-            buf.putLong(57, sendNano);        // clientOrderId = sendNano
+            // 每條訊息配獨立 ByteBuf（pooled），避免 Netty async send 時底層記憶體被覆蓋
+            ByteBuf out = alloc.directBuffer(65, 65);
+            template.position(0);
+            for (int j = 0; j < 65; j++) out.writeByte(template.get(j));
+            out.setLongLE(20, sendNano);  // timestamp (overwrite in out, LITTLE_ENDIAN to match SBE)
+            out.setLongLE(57, sendNano);  // clientOrderId = sendNano
 
-            ch.writeAndFlush(new BinaryWebSocketFrame(
-                    Unpooled.wrappedBuffer(buf.duplicate().position(0).limit(65))));
+            ch.writeAndFlush(new BinaryWebSocketFrame(out));
 
             if (count) sentCount.incrementAndGet();
             isBuy = !isBuy;

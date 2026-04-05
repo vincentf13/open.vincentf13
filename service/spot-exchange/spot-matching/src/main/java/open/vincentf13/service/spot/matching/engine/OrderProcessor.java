@@ -3,8 +3,10 @@ package open.vincentf13.service.spot.matching.engine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.Constants;
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
 import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
@@ -76,7 +78,10 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
             return;
         }
 
-        if (idempotencyGuard.isDuplicate(userId, clientOrderId)) return;
+        if (idempotencyGuard.isDuplicate(userId, clientOrderId)) {
+            StaticMetricsHolder.addCounter(Constants.MetricsKey.ORDER_DUPLICATE_COUNT, 1);
+            return;
+        }
 
         handleOrderCreate(userId, symbolId, price, qty, side, clientOrderId, gatewaySequence, timestamp, progress);
     }
