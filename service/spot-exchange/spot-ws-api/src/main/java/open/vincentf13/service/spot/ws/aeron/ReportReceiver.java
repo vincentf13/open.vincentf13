@@ -6,6 +6,7 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.Header;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.Channel;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,10 @@ public class ReportReceiver extends Worker {
     private Subscription subscription;
     private FragmentAssembler assembler;
 
+    // 待 flush channel 的線性陣列（報文批次結束後一次 flush，大幅減少 syscalls）
+    private final Channel[] pendingFlush = new Channel[AeronConstants.AERON_POLL_LIMIT];
+    private int pendingFlushCount = 0;
+
     /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
         super("report-receiver",
@@ -61,7 +66,16 @@ public class ReportReceiver extends Worker {
 
     @Override
     protected int doWork() {
-        return subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
+        int work = subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
+        // 批次 flush：所有本輪 poll 累積的 write 一次 flush，省 syscall。
+        if (pendingFlushCount > 0) {
+            for (int i = 0; i < pendingFlushCount; i++) {
+                pendingFlush[i].flush();
+                pendingFlush[i] = null;
+            }
+            pendingFlushCount = 0;
+        }
+        return work;
     }
 
     private void onReport(DirectBuffer buffer, int offset, int length, Header header) {
@@ -73,7 +87,14 @@ public class ReportReceiver extends Worker {
         ByteBuf nettyBuf = ALLOC.heapBuffer(length, length);
         buffer.getBytes(offset, nettyBuf.array(), nettyBuf.arrayOffset(), length);
         nettyBuf.writerIndex(length);
-        sessionManager.sendMessage(userId, nettyBuf);
+        Channel ch = sessionManager.queueMessage(userId, nettyBuf);
+        // 記錄待 flush channel（小陣列線性去重：單用戶壓測恆為 O(1)）
+        if (ch != null) {
+            for (int i = 0; i < pendingFlushCount; i++) {
+                if (pendingFlush[i] == ch) return;
+            }
+            if (pendingFlushCount < pendingFlush.length) pendingFlush[pendingFlushCount++] = ch;
+        }
     }
 
     @Override

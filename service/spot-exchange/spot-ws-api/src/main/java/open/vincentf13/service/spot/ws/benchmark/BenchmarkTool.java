@@ -99,10 +99,10 @@ public class BenchmarkTool {
             initOrderTemplate(buyBuf, BUYER_ID, 1001, 60000L * SCALE, 1000L);
             initOrderTemplate(sellBuf, SELLER_ID, 1001, 60000L * SCALE, 1000L);
 
-            // 3. Warmup (cap at 30K/sec to avoid flooding buffers before measurement)
-            int warmupRate = Math.min(targetRate, 30_000);
-            System.out.printf("Warmup %ds at %,d/sec...%n", warmupSec, warmupRate);
-            sendAtRate(ch, buyBuf, sellBuf, warmupRate, warmupSec, false);
+            // 3. Warmup：以量測速率執行，讓 JIT/GC 充分暖機，避免速率跳躍觸發
+            //    GC storm 與 JIT 重編譯污染量測結果。
+            System.out.printf("Warmup %ds at %,d/sec...%n", warmupSec, targetRate);
+            sendAtRate(ch, buyBuf, sellBuf, targetRate, warmupSec, false);
 
             // 4. Measure
             histogram.reset();

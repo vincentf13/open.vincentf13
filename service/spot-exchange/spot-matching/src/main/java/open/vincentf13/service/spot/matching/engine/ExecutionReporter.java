@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.nio.ByteOrder;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
+import static open.vincentf13.service.spot.infra.aeron.AeronUtil.SEND_BACKPRESSURE;
 import static open.vincentf13.service.spot.infra.aeron.AeronUtil.SEND_OK;
 
 /**
@@ -51,7 +52,7 @@ public class ExecutionReporter implements AutoCloseable {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_ACCEPTED_COUNT, 1);
         acceptedCount++;
         int len = HEADER_SIZE + OrderAcceptedEncoder.BLOCK_LENGTH;
-        AeronUtil.send(publication, len, (buf, off) -> {
+        sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_ACCEPTED);
             acceptedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
                 .timestamp(System.nanoTime())
@@ -65,7 +66,7 @@ public class ExecutionReporter implements AutoCloseable {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_REJECTED_COUNT, 1);
         rejectedCount++;
         int len = HEADER_SIZE + OrderRejectedEncoder.BLOCK_LENGTH;
-        AeronUtil.send(publication, len, (buf, off) -> {
+        sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_REJECTED);
             rejectedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
                 .timestamp(System.nanoTime())
@@ -83,7 +84,7 @@ public class ExecutionReporter implements AutoCloseable {
 
     private void sendMatchReport(Order order, Trade trade) {
         int len = HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;
-        AeronUtil.send(publication, len, (buf, off) -> {
+        sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
             matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
                 .timestamp(System.nanoTime())
@@ -101,7 +102,7 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportCanceled(Order order) {
         canceledCount++;
         int len = HEADER_SIZE + OrderCanceledEncoder.BLOCK_LENGTH;
-        AeronUtil.send(publication, len, (buf, off) -> {
+        sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_CANCELED);
             canceledEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
                 .timestamp(System.nanoTime())
@@ -110,6 +111,27 @@ public class ExecutionReporter implements AutoCloseable {
                 .filledQty(order.getFilled())
                 .clientOrderId(order.getClientOrderId());
         });
+    }
+
+    /**
+     * backpressure 重試 send：tryClaim 遇到 backpressure 時 spin 等待。
+     * 上限 ~2ms（10K spins）後放棄並記錄，避免撮合 thread 無限阻塞。
+     */
+    private void sendWithRetry(int len, AeronUtil.AeronHandler handler) {
+        int spins = 0;
+        while (true) {
+            int res = AeronUtil.send(publication, len, handler);
+            if (res == SEND_OK) return;
+            if (res != SEND_BACKPRESSURE) {
+                log.warn("Report send failed res={}, dropping one report", res);
+                return;
+            }
+            if (++spins > 10000) {
+                log.warn("Report send backpressure timeout after {} spins, dropping one report", spins);
+                return;
+            }
+            Thread.onSpinWait();
+        }
     }
 
     public void reportAuth(long userId) {}
