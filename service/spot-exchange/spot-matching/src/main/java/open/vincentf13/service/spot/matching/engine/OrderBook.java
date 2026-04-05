@@ -15,7 +15,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Deque;
 
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
@@ -33,17 +32,26 @@ public class OrderBook {
     // ========== 靜態工廠 ==========
 
     private static final Int2ObjectHashMap<OrderBook> INSTANCES = new Int2ObjectHashMap<>();
+    // volatile snapshot array：matching thread 新增 OrderBook 後原子發布，flusher thread 安全遍歷
+    private static volatile OrderBook[] INSTANCES_ARRAY = new OrderBook[0];
 
     public static OrderBook get(int symbolId) {
-        return INSTANCES.computeIfAbsent(symbolId, id -> {
-            Symbol s = Symbol.of(id);
-            if (s == null) throw new IllegalArgumentException("Unknown symbol: " + id);
-            return new OrderBook(id, s.getBaseAssetId(), s.getQuoteAssetId());
-        });
+        OrderBook existing = INSTANCES.get(symbolId);
+        if (existing != null) return existing;
+        Symbol s = Symbol.of(symbolId);
+        if (s == null) throw new IllegalArgumentException("Unknown symbol: " + symbolId);
+        OrderBook book = new OrderBook(symbolId, s.getBaseAssetId(), s.getQuoteAssetId());
+        INSTANCES.put(symbolId, book);
+        // 重建 snapshot array（volatile 發布給 flusher thread）
+        INSTANCES_ARRAY = INSTANCES.values().toArray(new OrderBook[0]);
+        return book;
     }
 
-    public static Collection<OrderBook> getInstances() { return INSTANCES.values(); }
-    public static void resetForRecovery() { INSTANCES.clear(); }
+    public static OrderBook[] getInstances() { return INSTANCES_ARRAY; }
+    public static void resetForRecovery() {
+        INSTANCES.clear();
+        INSTANCES_ARRAY = new OrderBook[0];
+    }
 
     // ========== 回呼介面 ==========
 
