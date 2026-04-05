@@ -96,34 +96,41 @@ public class AeronReceiver extends Worker {
     private void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
         long seq = buffer.getLong(offset + 8, java.nio.ByteOrder.LITTLE_ENDIAN);
         long last = progress.getLastProcessedSeq();
+        long expected = last + 1;
 
-        // 1. 狀態同步
+        // 1. WAITING 狀態：嚴格對齊 expected，否則丟棄 stale in-flight 訊息
+        //    只有 sender 重定位後送來的 last+1（或初次啟動 / cycle 邊界）才能轉 SENDING
         if (currentState == AeronState.WAITING) {
-            if (seq > last || last == MSG_SEQ_NONE) {
-                log.info("AeronReceiver 鏈路對齊成功！開始消費，起始位點: {}", seq);
-                currentState = AeronState.SENDING;
-            } else {
-                return;
-            }
-        }
-
-        // 2. 冪等過濾 (重複指令)
-        if (seq <= last) return;
-
-        // 3. 線性一致性檢查 (Continuity Check)
-        //    seq 為 Chronicle Queue index，同 cycle 內 +1 遞增；
-        //    cycle 邊界時 sequence-in-cycle 歸零，須另行判斷。
-        if (last != MSG_SEQ_NONE && seq != last + 1) {
-            if (!isValidCycleBoundary(last, seq)) {
-                log.error("數據空洞！expected={}, actual={}. 發送 RESUME 請求上游重定位。", last + 1, seq);
+            boolean aligned = (last == MSG_SEQ_NONE)
+                           || (seq == expected)
+                           || isValidCycleBoundary(last, seq);
+            if (!aligned) {
+                // stale in-flight 訊息，靜默忽略，繼續等待對齊
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_DROPPED_COUNT, 1);
-                currentState = AeronState.WAITING;
-                sendResume();
                 return;
             }
+            log.info("AeronReceiver 對齊成功，seq={}, expected={}", seq, expected);
+            currentState = AeronState.SENDING;
         }
 
-        // 4. 處理訊息
+        // 2. 冗余冪等（sender 正常不應重送，保險用）
+        if (seq < expected) {
+            StaticMetricsHolder.addCounter(MetricsKey.AERON_DROPPED_COUNT, 1);
+            return;
+        }
+
+        // 3. 線性一致性檢查：發現空洞立即暫停，等待 RESUME 重定位
+        if (last != MSG_SEQ_NONE && seq != expected && !isValidCycleBoundary(last, seq)) {
+            long gap = seq - expected;
+            log.error("數據空洞！expected={}, actual={}, gap={}。暫停消費等待 RESUME 重定位。",
+                      expected, seq, gap);
+            StaticMetricsHolder.addCounter(MetricsKey.AERON_DROPPED_COUNT, 1);
+            currentState = AeronState.WAITING;
+            sendResume();
+            return;  // 不處理、不更新 last，保持狀態機一致性
+        }
+
+        // 4. 正常處理
         engine.onAeronMessage(buffer.getInt(offset, java.nio.ByteOrder.LITTLE_ENDIAN), buffer, offset, length);
         progress.setLastProcessedSeq(seq);
         lastMsgReceivedTime = Clock.now();

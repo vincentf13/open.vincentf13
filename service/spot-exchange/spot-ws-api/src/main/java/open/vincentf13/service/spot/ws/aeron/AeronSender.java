@@ -164,7 +164,8 @@ public class AeronSender extends Worker {
             }
             if (res == SEND_BACKPRESSURE) { localBackPressure++; Thread.onSpinWait(); continue; }
             if (res == SEND_DISCONNECTED) {
-                log.warn("AeronSender 鏈路斷開，暫停發送。");
+                log.warn("AeronSender 鏈路斷開，walIndex={} 將在重連後重送", walIndex);
+                tailer.moveToIndex(walIndex);  // 倒回，避免 try-with-resources 吞掉此 index
                 currentState = AeronState.WAITING;
             }
             return false;

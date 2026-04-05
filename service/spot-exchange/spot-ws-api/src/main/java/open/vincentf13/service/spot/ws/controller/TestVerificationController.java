@@ -64,8 +64,9 @@ public class TestVerificationController {
         target.put("netty_recv", get(MetricsKey.NETTY_RECV_COUNT));
         target.put("wal_write", get(MetricsKey.GATEWAY_WAL_WRITE_COUNT));
         target.put("aeron_send", get(MetricsKey.AERON_SEND_COUNT));
+        target.put("aeron_send_backpressure", get(MetricsKey.AERON_BACKPRESSURE));
         target.put("aeron_recv", get(MetricsKey.AERON_RECV_COUNT));
-        target.put("backpressure", get(MetricsKey.AERON_BACKPRESSURE));
+        target.put("aeron_dropped", get(MetricsKey.AERON_DROPPED_COUNT));
         target.put("order_accepted", get(MetricsKey.ORDER_ACCEPTED_COUNT));
         target.put("order_rejected", get(MetricsKey.ORDER_REJECTED_COUNT));
         target.put("report_recv", get(MetricsKey.REPORT_RECV_COUNT));

@@ -160,7 +160,7 @@ $bench_args = @(
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
     "200000",  # 20萬 orders/sec
-    "180",     # 180秒測量
+    "60",     # 180秒測量
     "10"       # 10秒預熱
 )
 $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
