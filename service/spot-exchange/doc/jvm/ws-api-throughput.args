@@ -54,6 +54,10 @@
 # 需 OS 配置：Windows「鎖定記憶體中的分頁」權限；Linux: vm.nr_hugepages
 -XX:+UseLargePages
 
+# --- 執行緒與排程優化 ---
+-XX:+UseThreadPriorities
+-XX:ThreadPriorityPolicy=1
+
 # --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA
 -XX:+PerfDisableSharedMem

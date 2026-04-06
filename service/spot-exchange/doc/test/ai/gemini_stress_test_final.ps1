@@ -125,6 +125,11 @@ $nicName = (Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object -First
 $originalCoalescing = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -ErrorAction SilentlyContinue).DisplayValue
 $originalMimo = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -ErrorAction SilentlyContinue).DisplayValue
 
+# 網路限流器記錄與切換
+$mmProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
+$originalThrottling = (Get-ItemProperty -Path $mmProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
+$originalResponsiveness = (Get-ItemProperty -Path $mmProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
+
 # 安全清理函數
 function Safe-Remove($path) {
     if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path) -and $path -like "*open.vincentf13*") {
@@ -134,9 +139,13 @@ function Safe-Remove($path) {
 }
 
 try {
-    Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、切換至卓越效能..."
+    Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、停用網路限流、切換至卓越效能..."
     [HighPrecisionTimer]::SetMaxResolution()
     powercfg /setactive $ultimateScheme
+
+    # 停用網路限流器 (NetworkThrottlingIndex=0xFFFFFFFF, SystemResponsiveness=0)
+    Set-ItemProperty -Path $mmProfilePath -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $mmProfilePath -Name "SystemResponsiveness" -Value 0 -ErrorAction SilentlyContinue
 
     # 關閉網卡干擾屬性
     if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue }
@@ -334,6 +343,10 @@ try {
     # 還原網卡屬性
     if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue $originalCoalescing -ErrorAction SilentlyContinue }
     if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue $originalMimo -ErrorAction SilentlyContinue }
+
+    # 還原網路限流器
+    if ($null -ne $originalThrottling) { Set-ItemProperty -Path $mmProfilePath -Name "NetworkThrottlingIndex" -Value $originalThrottling -ErrorAction SilentlyContinue }
+    if ($null -ne $originalResponsiveness) { Set-ItemProperty -Path $mmProfilePath -Name "SystemResponsiveness" -Value $originalResponsiveness -ErrorAction SilentlyContinue }
 
     # 確保關閉所有啟動的服務
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
