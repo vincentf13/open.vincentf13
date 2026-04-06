@@ -132,6 +132,9 @@ public class Constants {
         public static final long LATENCY_MATCHING = 10L;
         public static final long LATENCY_TRANSPORT = 11L;
         public static final long LATENCY_REPORT_DELIVERY = 12L; // Matching 發送 → GW 收到 report
+        public static final long LATENCY_NETTY_PROCESS = 13L;   // gwTimeNs → Disruptor publish (Netty 解碼)
+        public static final long LATENCY_DISRUPTOR_WAIT = 14L;  // Disruptor publish → WalSender poll (排隊等待)
+        public static final long LATENCY_SENDER_ENCODE = 15L;   // WalSender poll → Aeron commit (SBE 編碼 + 發送)
 
         // 分位數指標 (Percentiles) - 這些用於 Chronicle Map 編碼，不直接作為 Micrometer Key
         public static final long P50 = 50L;

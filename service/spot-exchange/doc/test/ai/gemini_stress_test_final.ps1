@@ -215,12 +215,15 @@ try {
 
     # Gateway
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
+    $gw_diagnose_flags = @()
     if ($Diagnose) {
         $gw_args_file = "$log_path\ws-api-diagnose.args"
         (Get-Content "$doc_path\jvm\ws-api-throughput.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $gw_args_file
+        $gw_diagnose_flags = @("-Dspot.diagnose=true")
     }
     $gw_args = @(
-        "@$gw_args_file",
+        "@$gw_args_file"
+    ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=3,4,5,6",
         "-Dspot.wal.bypass=true",

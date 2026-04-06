@@ -34,6 +34,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
     private static final int MIN_COMMAND_LENGTH = OLD_HEADER_SIZE;
     /** SBE body 在客戶端幀中的起始偏移 (= OLD_HEADER_SIZE) */
     private static final int SBE_BODY_START = OLD_HEADER_SIZE;
+    private static final boolean DIAGNOSE = Boolean.getBoolean("spot.diagnose");
 
     private final RingBuffer<WalEvent> ringBuffer;
     private final WsSessionManager sessionManager;
@@ -72,6 +73,7 @@ public class WsCommandInboundHandler extends SimpleChannelInboundHandler<BinaryW
             event.arrivalTimeNs = arrivalTimeNs;
             decodeSbeBody(content, ri, msgType, event);
             userId = event.userId;
+            if (DIAGNOSE) event.publishTimeNs = System.nanoTime();
         } finally {
             ringBuffer.publish(seq);
         }

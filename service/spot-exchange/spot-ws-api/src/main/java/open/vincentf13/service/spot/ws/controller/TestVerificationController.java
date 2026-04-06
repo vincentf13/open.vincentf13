@@ -265,9 +265,15 @@ public class TestVerificationController {
             long p = rest / 1_000_000_000_000L;
             long t = rest % 1_000_000_000_000L;
 
-            String label = metricKey == MetricsKey.LATENCY_MATCHING ? "matching"
-                         : metricKey == MetricsKey.LATENCY_TRANSPORT ? "transport"
-                         : metricKey == MetricsKey.LATENCY_REPORT_DELIVERY ? "report_delivery" : null;
+            String label = switch ((int) metricKey) {
+                case (int) MetricsKey.LATENCY_MATCHING -> "matching";
+                case (int) MetricsKey.LATENCY_TRANSPORT -> "transport";
+                case (int) MetricsKey.LATENCY_REPORT_DELIVERY -> "report_delivery";
+                case (int) MetricsKey.LATENCY_NETTY_PROCESS -> "netty_process";
+                case (int) MetricsKey.LATENCY_DISRUPTOR_WAIT -> "disruptor_wait";
+                case (int) MetricsKey.LATENCY_SENDER_ENCODE -> "sender_encode";
+                default -> null;
+            };
             if (label != null) {
                 rawData.computeIfAbsent(t, k1 -> new HashMap<>())
                        .computeIfAbsent(label, k2 -> new HashMap<>())
@@ -282,6 +288,9 @@ public class TestVerificationController {
             addLatencyPercentiles(map, "transport", entry.getValue().get("transport"));
             addLatencyPercentiles(map, "matching", entry.getValue().get("matching"));
             addLatencyPercentiles(map, "report_delivery", entry.getValue().get("report_delivery"));
+            addLatencyPercentiles(map, "netty_process", entry.getValue().get("netty_process"));
+            addLatencyPercentiles(map, "disruptor_wait", entry.getValue().get("disruptor_wait"));
+            addLatencyPercentiles(map, "sender_encode", entry.getValue().get("sender_encode"));
             result.add(map);
         }
         return result;

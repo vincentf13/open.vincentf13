@@ -102,6 +102,7 @@ public class WalSender extends Worker {
     }
 
     private static final boolean BYPASS_WAL = Boolean.getBoolean("spot.wal.bypass");
+    private static final boolean DIAGNOSE = Boolean.getBoolean("spot.diagnose");
     private long bypassSeq = 0;
 
     // ===== 主迴圈 =====
@@ -170,10 +171,12 @@ public class WalSender extends Worker {
     // ===== LIVE 模式：Disruptor → WAL → Aeron =====
 
     private final EventPoller.Handler<WalEvent> liveHandler = (event, sequence, endOfBatch) -> {
+        long pollTimeNs = DIAGNOSE ? System.nanoTime() : 0;
         long walIndex = writeToWal(event);
         if (walIndex >= 0) {
             sendFromEvent(event, walIndex);
             StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+            if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         }
         pollCount++;
         return true;
@@ -202,8 +205,10 @@ public class WalSender extends Worker {
     // ===== BYPASS 模式：跳過 WAL，Disruptor → Aeron 直送 =====
 
     private final EventPoller.Handler<WalEvent> bypassHandler = (event, sequence, endOfBatch) -> {
+        long pollTimeNs = DIAGNOSE ? System.nanoTime() : 0;
         sendFromEvent(event, ++bypassSeq);
         StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+        if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         pollCount++;
         return true;
     };
@@ -364,6 +369,17 @@ public class WalSender extends Worker {
             currentState = AeronState.SENDING;
         }
     };
+
+    // ===== Transport 子段延遲 (僅 -Dspot.diagnose=true) =====
+
+    private void recordTransportSubLatencies(WalEvent e, long pollTimeNs, long doneNs) {
+        // netty_process: gwTimeNs → publishTimeNs (Netty 解碼 + Disruptor publish)
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_NETTY_PROCESS, e.publishTimeNs - e.arrivalTimeNs);
+        // disruptor_wait: publishTimeNs → pollTimeNs (事件在 RingBuffer 等待)
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_DISRUPTOR_WAIT, pollTimeNs - e.publishTimeNs);
+        // sender_encode: pollTimeNs → doneNs (WAL write + SBE encode + Aeron send)
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_SENDER_ENCODE, doneNs - pollTimeNs);
+    }
 
     // ===== Metrics =====
 

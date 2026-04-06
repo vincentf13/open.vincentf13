@@ -13,6 +13,9 @@ public class WalEvent {
     public long timestamp;
     public long userId;
 
+    /** Netty publish 到 Disruptor 後的 nanoTime，用於量測 disruptor_wait 延遲 */
+    public long publishTimeNs;
+
     // ---- 各業務類型專屬欄位 (根據 msgType 選用) ----
     public final WalOrderCreate orderCreate = new WalOrderCreate();
     public final WalOrderCancel orderCancel = new WalOrderCancel();
