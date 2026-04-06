@@ -74,10 +74,18 @@ public class ReportReceiver extends Worker {
         return work;
     }
 
+    private static final int MATCHING_END_NS_OFFSET = 4; // report header offset 4-11: T_send nanoTime
+
     private void onReport(DirectBuffer buffer, int offset, int length, Header header) {
         if (length < USER_ID_OFFSET + 8) return;
         long userId = buffer.getLong(offset + USER_ID_OFFSET, ByteOrder.LITTLE_ENDIAN);
         StaticMetricsHolder.addCounter(MetricsKey.REPORT_RECV_COUNT, 1);
+
+        // report_delivery 延遲：T_send (Matching writeFrameHeader) → now (GW receive)
+        long matchingSendNs = buffer.getLong(offset + MATCHING_END_NS_OFFSET, ByteOrder.LITTLE_ENDIAN);
+        if (matchingSendNs > 0) {
+            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_REPORT_DELIVERY, System.nanoTime() - matchingSendNs);
+        }
 
         Channel ch = sessionManager.findChannel(userId);
         if (ch == null || !ch.isActive()) return;

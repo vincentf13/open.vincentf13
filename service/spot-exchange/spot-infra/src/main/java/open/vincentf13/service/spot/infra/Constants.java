@@ -131,6 +131,7 @@ public class Constants {
         // 延遲分佈指標 (Latencies - Nanoseconds)
         public static final long LATENCY_MATCHING = 10L;
         public static final long LATENCY_TRANSPORT = 11L;
+        public static final long LATENCY_REPORT_DELIVERY = 12L; // Matching 發送 → GW 收到 report
 
         // 分位數指標 (Percentiles) - 這些用於 Chronicle Map 編碼，不直接作為 Micrometer Key
         public static final long P50 = 50L;

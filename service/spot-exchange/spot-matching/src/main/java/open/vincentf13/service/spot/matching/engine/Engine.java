@@ -80,7 +80,9 @@ public class Engine {
 
         long seq = router.route(msgType, buffer, offset, length, gatewayTimeNs, progress);
 
-        recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, System.nanoTime());
+        // 使用最後一個 report 的 writeFrameHeader nanoTime 作為 matching 結束時間
+        // 確保 matching 和 report_delivery 在同一個時間點切分，緊貼不交疊
+        recordMessageMetrics(msgType, arrivalTimeNs, gatewayTimeNs, reporter.getMatchingEndNs());
         if (seq != MSG_SEQ_NONE) {
             long previousSeq = pendingFlushSeq != MSG_SEQ_NONE ? pendingFlushSeq : progress.getLastProcessedMsgSeq();
             if (previousSeq != MSG_SEQ_NONE && seq <= previousSeq) {

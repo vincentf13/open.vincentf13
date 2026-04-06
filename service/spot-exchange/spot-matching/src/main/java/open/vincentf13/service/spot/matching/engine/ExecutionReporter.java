@@ -43,6 +43,9 @@ public class ExecutionReporter implements AutoCloseable {
 
     private long acceptedCount, rejectedCount, matchedCount, canceledCount;
 
+    /** 最後一次 writeFrameHeader 的 nanoTime，Engine 用於計算 matching 延遲 */
+    private long matchingEndNs;
+
     public void init() {
         this.publication = AeronUtil.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.REPORT_STREAM_ID);
         log.info("ExecutionReporter 已初始化，Aeron report channel 就緒");
@@ -137,9 +140,15 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportAuth(long userId) {}
     public void reportDeposit(long userId, int assetId, long amount) {}
 
+    public long getMatchingEndNs() { return matchingEndNs; }
+
     private void writeFrameHeader(org.agrona.MutableDirectBuffer buf, int off, int msgType) {
         buf.putInt(off, msgType, ByteOrder.LITTLE_ENDIAN);
-        buf.putLong(off + 4, 0L, ByteOrder.LITTLE_ENDIAN); // reserved
+        // 取一次 nanoTime 同時用於：
+        // 1. 存入 report header → GW 用於計算 report_delivery
+        // 2. 記錄到 matchingEndNs → Engine 用於計算 matching (不含 Aeron IPC)
+        matchingEndNs = System.nanoTime();
+        buf.putLong(off + 4, matchingEndNs, ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override

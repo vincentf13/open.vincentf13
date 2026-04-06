@@ -268,7 +268,8 @@ public class TestVerificationController {
             long t = rest % 1_000_000_000_000L;
 
             String label = metricKey == MetricsKey.LATENCY_MATCHING ? "matching"
-                         : metricKey == MetricsKey.LATENCY_TRANSPORT ? "transport" : null;
+                         : metricKey == MetricsKey.LATENCY_TRANSPORT ? "transport"
+                         : metricKey == MetricsKey.LATENCY_REPORT_DELIVERY ? "report_delivery" : null;
             if (label != null) {
                 rawData.computeIfAbsent(t, k1 -> new HashMap<>())
                        .computeIfAbsent(label, k2 -> new HashMap<>())
