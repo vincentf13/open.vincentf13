@@ -73,6 +73,9 @@ public class WalSender extends Worker {
     private long curPrice, curQty, curClientOrderId, curOrderId, curAmount;
     private byte curSide;
 
+    // ===== Batch limit (減少 head-of-line blocking) =====
+    private static final int DISRUPTOR_POLL_LIMIT = 8;
+
     // ===== Metrics =====
     private int pollCount;
     private long localWriteCount;
@@ -137,7 +140,7 @@ public class WalSender extends Worker {
     private final EventPoller.Handler<WalEvent> walOnlyHandler = (event, sequence, endOfBatch) -> {
         writeToWal(event);
         pollCount++;
-        return true;
+        return pollCount < DISRUPTOR_POLL_LIMIT;
     };
 
     private int drainToWalOnly() {
@@ -181,7 +184,7 @@ public class WalSender extends Worker {
             if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         }
         pollCount++;
-        return true;
+        return pollCount < DISRUPTOR_POLL_LIMIT;
     };
 
     private int processLive() {
@@ -195,7 +198,7 @@ public class WalSender extends Worker {
 
     private final EventPoller.Handler<WalEvent> discardHandler = (event, sequence, endOfBatch) -> {
         pollCount++;
-        return true;
+        return pollCount < DISRUPTOR_POLL_LIMIT;
     };
 
     private int drainAndDiscard() {
@@ -212,7 +215,7 @@ public class WalSender extends Worker {
         StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
         if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         pollCount++;
-        return true;
+        return pollCount < DISRUPTOR_POLL_LIMIT;
     };
 
     private int processBypass() {
