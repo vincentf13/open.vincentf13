@@ -30,7 +30,7 @@ public class ExecutionReporter implements AutoCloseable {
 
     private static final int HEADER_SIZE = 20;
     private static final int SBE_HEADER_OFFSET = 12;
-    private static final int MATCH_REPORT_SIZE = HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;
+    private static final int MATCH_SINGLE_LEN = HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;
 
     private Publication publication;
 
@@ -49,18 +49,15 @@ public class ExecutionReporter implements AutoCloseable {
     // ===== cur* fields — 取代 per-call lambda 捕獲 =====
     private int curMsgType, curTotalLen;
     private long curUserId, curOrderId, curClientOrderId, curFilledQty;
-    // match batch 專用
-    private long curTakerUserId, curTakerOrderId, curTakerClientOrderId, curTakerCumQty;
-    private short curTakerStatus;
-    private long curMakerUserId, curMakerOrderId, curMakerClientOrderId, curMakerCumQty;
-    private short curMakerStatus;
-    private long curTradePrice, curTradeQty;
+    // match 專用
+    private short curStatus;
+    private long curTradePrice, curTradeQty, curCumQty;
 
     // ===== 預分配 Aeron handlers =====
     private final AeronUtil.AeronHandler acceptedFiller = this::fillAccepted;
     private final AeronUtil.AeronHandler rejectedFiller = this::fillRejected;
     private final AeronUtil.AeronHandler canceledFiller = this::fillCanceled;
-    private final AeronUtil.AeronHandler matchBatchFiller = this::fillMatchBatch;
+    private final AeronUtil.AeronHandler matchFiller = this::fillMatch;
 
     public void init() {
         this.publication = AeronUtil.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.REPORT_STREAM_ID);
@@ -84,17 +81,19 @@ public class ExecutionReporter implements AutoCloseable {
         trySend(HEADER_SIZE + OrderRejectedEncoder.BLOCK_LENGTH, rejectedFiller);
     }
 
-    /** Batch match report：taker + maker 合併為一次 Aeron tryClaim */
     public void reportMatch(Order taker, Order maker, Trade trade) {
         matchedCount++;
-        curTakerUserId = taker.getUserId(); curTakerOrderId = taker.getOrderId();
-        curTakerClientOrderId = taker.getClientOrderId(); curTakerCumQty = taker.getFilled();
-        curTakerStatus = (short) taker.getStatus();
-        curMakerUserId = maker.getUserId(); curMakerOrderId = maker.getOrderId();
-        curMakerClientOrderId = maker.getClientOrderId(); curMakerCumQty = maker.getFilled();
-        curMakerStatus = (short) maker.getStatus();
         curTradePrice = trade.getPrice(); curTradeQty = trade.getQty();
-        trySend(MATCH_REPORT_SIZE * 2, matchBatchFiller); // 一次 tryClaim 寫 2 個 report
+        // taker report
+        curUserId = taker.getUserId(); curOrderId = taker.getOrderId();
+        curClientOrderId = taker.getClientOrderId(); curCumQty = taker.getFilled();
+        curStatus = (short) taker.getStatus();
+        trySend(MATCH_SINGLE_LEN, matchFiller);
+        // maker report
+        curUserId = maker.getUserId(); curOrderId = maker.getOrderId();
+        curClientOrderId = maker.getClientOrderId(); curCumQty = maker.getFilled();
+        curStatus = (short) maker.getStatus();
+        trySend(MATCH_SINGLE_LEN, matchFiller);
     }
 
     public void reportCanceled(Order order) {
@@ -130,23 +129,13 @@ public class ExecutionReporter implements AutoCloseable {
             .filledQty(curFilledQty).clientOrderId(curClientOrderId);
     }
 
-    /** Batch: 一次 claim 寫入 taker + maker 兩個 match report */
-    private void fillMatchBatch(MutableDirectBuffer buf, int off) {
-        // Report 1: taker
+    private void fillMatch(MutableDirectBuffer buf, int off) {
         writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
         matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-            .timestamp(matchingEndNs).userId(curTakerUserId).orderId(curTakerOrderId)
-            .status(OrderStatus.get(curTakerStatus))
-            .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curTakerCumQty)
-            .avgPrice(curTradePrice).clientOrderId(curTakerClientOrderId);
-        // Report 2: maker (offset by MATCH_REPORT_SIZE)
-        int off2 = off + MATCH_REPORT_SIZE;
-        writeFrameHeader(buf, off2, MsgType.ORDER_MATCHED);
-        matchedEncoder.wrapAndApplyHeader(buf, off2 + SBE_HEADER_OFFSET, headerEncoder)
-            .timestamp(matchingEndNs).userId(curMakerUserId).orderId(curMakerOrderId)
-            .status(OrderStatus.get(curMakerStatus))
-            .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curMakerCumQty)
-            .avgPrice(curTradePrice).clientOrderId(curMakerClientOrderId);
+            .timestamp(matchingEndNs).userId(curUserId).orderId(curOrderId)
+            .status(OrderStatus.get(curStatus))
+            .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curCumQty)
+            .avgPrice(curTradePrice).clientOrderId(curClientOrderId);
     }
 
     // ===== Aeron send =====
