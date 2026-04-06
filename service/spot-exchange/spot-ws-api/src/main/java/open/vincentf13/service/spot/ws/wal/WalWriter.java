@@ -24,8 +24,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  * 透過 Disruptor EventPoller 非阻塞地排空 RingBuffer，
  * 以 BinaryWire 帶標籤格式寫入 Chronicle Queue，確保 WAL 版本相容。
  */
+/**
+ * @deprecated 已被 {@link WalSender} 取代（合併 WalWriter + AeronSender，減少 1 次跨線程 handoff）
+ */
 @Slf4j
-@Component
+// @Component — disabled, replaced by WalSender
 public class WalWriter extends Worker {
     private final RingBuffer<WalEvent> ringBuffer;
     private final EventPoller<WalEvent> poller;

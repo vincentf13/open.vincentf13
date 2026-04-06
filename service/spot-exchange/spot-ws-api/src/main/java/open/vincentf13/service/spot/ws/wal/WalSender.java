@@ -1,0 +1,358 @@
+package open.vincentf13.service.spot.ws.wal;
+
+import com.lmax.disruptor.EventPoller;
+import com.lmax.disruptor.RingBuffer;
+import io.aeron.Publication;
+import io.aeron.Subscription;
+import io.aeron.logbuffer.FragmentHandler;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.ExcerptAppender;
+import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.wire.Wire;
+import open.vincentf13.service.spot.infra.aeron.*;
+import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
+import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.chronicle.WalField;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
+import open.vincentf13.service.spot.infra.thread.Worker;
+import open.vincentf13.service.spot.infra.util.PreTouchUtil;
+import open.vincentf13.service.spot.model.command.AbstractSbeModel;
+import open.vincentf13.service.spot.sbe.*;
+import org.agrona.MutableDirectBuffer;
+import org.springframework.stereotype.Component;
+
+import java.nio.ByteOrder;
+
+import static open.vincentf13.service.spot.infra.Constants.*;
+import static open.vincentf13.service.spot.infra.aeron.AeronUtil.*;
+
+/**
+ * WAL + Aeron 合併發送器 (WalSender)
+ *
+ * 合併原 WalWriter + AeronSender 為單一 worker thread，消除跨線程 handoff：
+ *   舊: Netty → Disruptor → WalWriter → Chronicle Queue → AeronSender → Aeron (4 handoffs)
+ *   新: Netty → Disruptor → WalSender (寫 WAL + 送 Aeron) → Aeron          (3 handoffs)
+ *
+ * 寫入順序保證：先寫 WAL 成功拿到 walIndex，再送 Aeron。
+ * Matching Engine 的 RESUME 握手 + WAL replay 機制完整保留。
+ */
+@Slf4j
+@Component
+public class WalSender extends Worker {
+
+    // ===== Disruptor (from WalWriter) =====
+    private final RingBuffer<WalEvent> ringBuffer;
+    private final EventPoller<WalEvent> poller;
+
+    // ===== Chronicle Queue (from WalWriter) =====
+    private final ChronicleQueue wal;
+    private ExcerptAppender appender;
+
+    // ===== Aeron (from AeronSender) =====
+    private Publication publication;
+    private Subscription controlSub;
+    private ExcerptTailer replayTailer;
+    private AeronState currentState = AeronState.WAITING;
+    private long resumeSkipIndex = Long.MIN_VALUE;
+    private boolean replaying = false;
+
+    // ===== SBE 編碼器 (單線程獨佔) =====
+    private final MessageHeaderEncoder sbeHeaderEncoder = new MessageHeaderEncoder();
+    private final OrderCreateEncoder orderCreateEncoder = new OrderCreateEncoder();
+    private final OrderCancelEncoder orderCancelEncoder = new OrderCancelEncoder();
+    private final DepositEncoder depositEncoder = new DepositEncoder();
+    private final AuthEncoder authEncoder = new AuthEncoder();
+
+    // ===== Metrics =====
+    private int pollCount;
+    private long localWriteCount;
+    private long localBackPressure;
+
+    public WalSender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
+        super("wal-sender",
+              MetricsKey.CPU_ID_WAL_WRITER, MetricsKey.CPU_ID_CURRENT_WAL_WRITER,
+              MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE);
+        this.wal = Storage.self().gatewaySenderWal();
+        this.ringBuffer = ringBuffer;
+        this.poller = ringBuffer.newPoller();
+        ringBuffer.addGatingSequences(poller.getSequence());
+    }
+
+    @PostConstruct @Override public void start() { super.start(); }
+    @PreDestroy @Override public void stop() { super.stop(); }
+
+    @Override
+    protected void onStart() {
+        PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.WAL_BASE_DIR));
+        this.appender = wal.acquireAppender();
+        this.publication = AeronUtil.aeron().addPublication(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
+        this.controlSub = AeronUtil.aeron().addSubscription(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
+        this.replayTailer = wal.createTailer();
+        log.info("[WAL-SENDER] 初始化完成，合併 WAL 寫入 + Aeron 發送");
+    }
+
+    // ===== 主迴圈 =====
+
+    @Override
+    protected int doWork() {
+        if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
+
+        int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
+
+        if (currentState == AeronState.WAITING) {
+            // WAITING：仍寫 WAL (持久化)，但不送 Aeron
+            work += drainToWalOnly();
+            return work;
+        }
+
+        if (replaying) {
+            // REPLAY：從 WAL tailer 追趕歷史資料 → Aeron，同時排空 Disruptor 新資料 → WAL
+            work += replayFromWal();
+            work += drainToWalOnly();
+            return work;
+        }
+
+        // LIVE：Disruptor → WAL → Aeron (同一線程，無跨線程 handoff)
+        work += processLive();
+        return work;
+    }
+
+    // ===== WAITING 模式：只寫 WAL =====
+
+    private final EventPoller.Handler<WalEvent> walOnlyHandler = (event, sequence, endOfBatch) -> {
+        writeToWal(event);
+        pollCount++;
+        return true;
+    };
+
+    private int drainToWalOnly() {
+        pollCount = 0;
+        try { poller.poll(walOnlyHandler); } catch (Exception e) { log.error("[WAL-SENDER] WAL write failed", e); }
+        if (pollCount > 0) localWriteCount += pollCount;
+        return pollCount;
+    }
+
+    // ===== REPLAY 模式：從 WAL 追趕 → Aeron =====
+
+    private int replayFromWal() {
+        int count = 0;
+        for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
+            try (var dc = replayTailer.readingDocument()) {
+                if (!dc.isPresent()) {
+                    replaying = false;
+                    log.info("[WAL-SENDER] WAL replay 完成，切換到 live 模式");
+                    break;
+                }
+                long walIndex = dc.index();
+                if (walIndex == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
+                Wire wire = dc.wire();
+                if (wire == null) break;
+                if (!readAndSendFromWire(wire, walIndex)) break;
+                StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // ===== LIVE 模式：Disruptor → WAL → Aeron =====
+
+    private final EventPoller.Handler<WalEvent> liveHandler = (event, sequence, endOfBatch) -> {
+        long walIndex = writeToWal(event);
+        if (walIndex >= 0) {
+            sendFromEvent(event, walIndex);
+            StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+        }
+        pollCount++;
+        return true;
+    };
+
+    private int processLive() {
+        pollCount = 0;
+        try { poller.poll(liveHandler); } catch (Exception e) { log.error("[WAL-SENDER] live processing failed", e); }
+        if (pollCount > 0) localWriteCount += pollCount;
+        return pollCount;
+    }
+
+    // ===== WAL 寫入 (from WalWriter) =====
+
+    private long writeToWal(WalEvent e) {
+        try (var dc = appender.writingDocument()) {
+            Wire wire = dc.wire();
+            if (wire == null) return -1;
+
+            wire.write(WalField.msgType).int32(e.msgType);
+            wire.write(WalField.gwTime).int64(e.arrivalTimeNs);
+            wire.write(WalField.userId).int64(e.userId);
+            wire.write(WalField.timestamp).int64(e.timestamp);
+
+            switch (e.msgType) {
+                case MsgType.ORDER_CREATE -> {
+                    WalOrderCreate oc = e.orderCreate;
+                    wire.write(WalField.symbolId).int32(oc.symbolId);
+                    wire.write(WalField.price).int64(oc.price);
+                    wire.write(WalField.qty).int64(oc.qty);
+                    wire.write(WalField.side).int8(oc.side);
+                    wire.write(WalField.clientOrderId).int64(oc.clientOrderId);
+                }
+                case MsgType.ORDER_CANCEL -> wire.write(WalField.orderId).int64(e.orderCancel.orderId);
+                case MsgType.DEPOSIT -> {
+                    WalDeposit d = e.deposit;
+                    wire.write(WalField.assetId).int32(d.assetId);
+                    wire.write(WalField.amount).int64(d.amount);
+                }
+            }
+            return dc.index();
+        }
+    }
+
+    // ===== Aeron 發送：直接從 WalEvent 編碼 SBE (LIVE 模式) =====
+
+    private void sendFromEvent(WalEvent e, long walIndex) {
+        switch (e.msgType) {
+            case MsgType.ORDER_CREATE -> {
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
+                WalOrderCreate oc = e.orderCreate;
+                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
+                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(e.timestamp).userId(e.userId).symbolId(oc.symbolId)
+                        .price(oc.price).qty(oc.qty).side(Side.get((short) oc.side)).clientOrderId(oc.clientOrderId));
+            }
+            case MsgType.ORDER_CANCEL -> {
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
+                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
+                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(e.timestamp).userId(e.userId).orderId(e.orderCancel.orderId));
+            }
+            case MsgType.DEPOSIT -> {
+                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
+                WalDeposit d = e.deposit;
+                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
+                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(e.timestamp).userId(e.userId).assetId(d.assetId).amount(d.amount));
+            }
+            case MsgType.AUTH -> {
+                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
+                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
+                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(e.timestamp).userId(e.userId));
+            }
+        }
+    }
+
+    // ===== Aeron 發送：從 BinaryWire 解碼 (REPLAY 模式) =====
+
+    private boolean readAndSendFromWire(Wire wire, long walIndex) {
+        int msgType = wire.read(WalField.msgType).int32();
+        long gwTime = wire.read(WalField.gwTime).int64();
+        long userId = wire.read(WalField.userId).int64();
+        long ts     = wire.read(WalField.timestamp).int64();
+
+        return switch (msgType) {
+            case MsgType.ORDER_CREATE -> {
+                int symbolId = wire.read(WalField.symbolId).int32();
+                long price   = wire.read(WalField.price).int64();
+                long qty     = wire.read(WalField.qty).int64();
+                byte side    = wire.read(WalField.side).int8();
+                long cid     = wire.read(WalField.clientOrderId).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).symbolId(symbolId)
+                        .price(price).qty(qty).side(Side.get((short) side)).clientOrderId(cid));
+            }
+            case MsgType.ORDER_CANCEL -> {
+                long orderId = wire.read(WalField.orderId).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).orderId(orderId));
+            }
+            case MsgType.DEPOSIT -> {
+                int assetId = wire.read(WalField.assetId).int32();
+                long amount = wire.read(WalField.amount).int64();
+                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId).assetId(assetId).amount(amount));
+            }
+            case MsgType.AUTH -> {
+                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
+                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
+                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(ts).userId(userId));
+            }
+            default -> true;
+        };
+    }
+
+    // ===== Aeron trySendSbe (from AeronSender) =====
+
+    private boolean trySendSbe(int msgType, int totalLen, long walIndex, long gwTime, AeronUtil.AeronHandler bodyFiller) {
+        while (running.get()) {
+            int res = AeronUtil.send(publication, totalLen, (buf, off) -> {
+                buf.putInt(off + AbstractSbeModel.TYPE_OFFSET, msgType, ByteOrder.LITTLE_ENDIAN);
+                buf.putInt(off + 4, 0, ByteOrder.LITTLE_ENDIAN);
+                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, walIndex, ByteOrder.LITTLE_ENDIAN);
+                buf.putLong(off + AbstractSbeModel.GATEWAY_TIME_OFFSET, gwTime, ByteOrder.LITTLE_ENDIAN);
+                bodyFiller.onFill(buf, off);
+            });
+
+            if (res == SEND_OK) {
+                if (walIndex == 1) log.info("[WAL-SENDER] 成功發送第一條消息 (seq=1)");
+                return true;
+            }
+            if (res == SEND_BACKPRESSURE) { localBackPressure++; Thread.onSpinWait(); continue; }
+            log.warn("[WAL-SENDER] send failed res={}, walIndex={}", res, walIndex);
+            if (res == SEND_DISCONNECTED) currentState = AeronState.WAITING;
+            return false;
+        }
+        return false;
+    }
+
+    // ===== RESUME 握手 =====
+
+    private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
+        if (buffer.getInt(offset, ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
+            long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, ByteOrder.LITTLE_ENDIAN);
+            log.info("[WAL-SENDER] RESUME 握手成功，恢復位點: {}", walIndex);
+
+            if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !replayTailer.moveToIndex(walIndex)) {
+                replayTailer.toStart();
+                resumeSkipIndex = Long.MIN_VALUE;
+            } else {
+                resumeSkipIndex = walIndex;
+            }
+
+            // 判斷是否需要 replay：tailer 位置 < appender 位置
+            replaying = true;
+            currentState = AeronState.SENDING;
+        }
+    };
+
+    // ===== Metrics =====
+
+    @Override
+    protected void onMetricsReport() {
+        if (localWriteCount > 0) {
+            StaticMetricsHolder.addCounter(MetricsKey.GATEWAY_WAL_WRITE_COUNT, localWriteCount);
+            localWriteCount = 0;
+        }
+        if (localBackPressure > 0) {
+            StaticMetricsHolder.addCounter(MetricsKey.AERON_BACKPRESSURE, localBackPressure);
+            localBackPressure = 0;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        // 排空 Disruptor 殘留事件
+        try { poller.poll(walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
+        if (publication != null) publication.close();
+        if (controlSub != null) controlSub.close();
+        log.info("[WAL-SENDER] 已停止");
+    }
+}

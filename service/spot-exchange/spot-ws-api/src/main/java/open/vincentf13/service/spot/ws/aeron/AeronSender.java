@@ -35,8 +35,11 @@ import static open.vincentf13.service.spot.infra.aeron.AeronUtil.*;
  * 以 SBE 編碼組裝 Aeron 訊息 (32-byte header + SBE body)，
  * 直接寫入 Aeron claim buffer，達成單次拷貝。
  */
+/**
+ * @deprecated 已被 {@link open.vincentf13.service.spot.ws.wal.WalSender} 取代
+ */
 @Slf4j
-@Component
+// @Component — disabled, replaced by WalSender
 public class AeronSender extends Worker {
     private final ChronicleQueue wal;
     private Publication publication;
