@@ -268,6 +268,13 @@ try {
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 
+    # --- Warmup 結束前重置內部指標 (排除 warmup 數據污染) ---
+    $resetJob = Start-Job -ScriptBlock {
+        Start-Sleep -Seconds 58  # warmup 60s，提前 2s 重置
+        try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/reset" -Method POST -ErrorAction Stop | Out-Null }
+        catch { } # 靜默失敗
+    }
+
     # --- [Diagnose] 背景診斷工具 (僅 -Diagnose 模式啟用，避免影響延遲) ---
     if ($Diagnose) {
         Write-Host ">>> [Diagnose] 啟用 AI 診斷工具 (heap histogram, 中斷監控, 內部指標)..."
@@ -297,7 +304,8 @@ try {
 
     $bench.WaitForExit()
 
-    # --- 清理診斷 Jobs ---
+    # --- 清理背景 Jobs ---
+    if ($resetJob) { Wait-Job $resetJob -Timeout 5; Remove-Job $resetJob -ErrorAction SilentlyContinue }
     if ($monitorTask) { Stop-Job $monitorTask; Remove-Job $monitorTask }
     if ($heapJob) { Wait-Job $heapJob -Timeout 10; Stop-Job $heapJob -ErrorAction SilentlyContinue; Remove-Job $heapJob -ErrorAction SilentlyContinue }
 

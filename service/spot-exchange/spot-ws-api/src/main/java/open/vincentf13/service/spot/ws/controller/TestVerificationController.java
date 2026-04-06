@@ -2,6 +2,7 @@ package open.vincentf13.service.spot.ws.controller;
 
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
+import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import open.vincentf13.service.spot.model.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,6 +48,21 @@ public class TestVerificationController {
             lastTotal = entry.getValue();
         }
         return result;
+    }
+
+    @PostMapping("/metrics/reset")
+    public Map<String, Object> resetMetrics() {
+        Storage s = Storage.self();
+        s.latencyHistory().clear();
+        s.counterHistory().clear();
+        s.tpsHistory().clear();
+        s.dutyCycleHistory().clear();
+        s.gcEventHistory().clear();
+        // 重置累計計數器
+        StaticMetricsHolder.values().forEach((k, v) -> v.set(0));
+        // 排空 in-memory latency window
+        StaticMetricsHolder.snapshotLatencyAndReset();
+        return Map.of("status", "ok", "time", TIME.format(java.time.Instant.now()));
     }
 
     @GetMapping("/metrics/saturation")
