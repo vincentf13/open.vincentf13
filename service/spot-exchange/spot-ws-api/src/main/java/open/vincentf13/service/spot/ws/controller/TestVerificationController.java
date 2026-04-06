@@ -50,6 +50,12 @@ public class TestVerificationController {
         return result;
     }
 
+    @PostMapping("/gc")
+    public Map<String, Object> triggerGc() {
+        System.gc();
+        return Map.of("status", "ok", "time", TIME.format(java.time.Instant.now()));
+    }
+
     @PostMapping("/metrics/reset")
     public Map<String, Object> resetMetrics() {
         Storage s = Storage.self();

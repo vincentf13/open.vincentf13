@@ -246,8 +246,11 @@ try {
     $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    Write-Host "等待服務穩態 (30s)..."
-    Start-Sleep -Seconds 30
+    Write-Host "等待服務穩態 (30s) + 觸發 ZGC Warmup..."
+    Start-Sleep -Seconds 10
+    # 提前觸發 ZGC Warmup：讓 ZGC 在穩態期間完成校準，測量期間不再有 GC
+    try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/gc" -Method POST -ErrorAction Stop | Out-Null; Write-Host "System.gc() 已觸發" } catch {}
+    Start-Sleep -Seconds 20
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."

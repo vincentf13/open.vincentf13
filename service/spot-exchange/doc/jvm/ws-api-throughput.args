@@ -39,8 +39,7 @@
 -XX:ConcGCThreads=2
 # 提高突發分配耐受度
 -XX:ZAllocationSpikeTolerance=5.0
-# 關閉 ZGC 主動 GC：ZGC 每 ~10s 自發 Major Cycle（114~141ms concurrent），
-# 在有足夠 heap 時白白消耗 CPU 與 cache，與 busy-spin worker 競爭。
+# 關閉 ZGC 主動 GC，測量期間零 GC。Warmup 由腳本在穩態等待期呼叫 System.gc() 提前完成。
 -XX:-ZProactive
 
 # --- 記憶體配置 (4GB Heap) ---
