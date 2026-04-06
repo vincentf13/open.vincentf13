@@ -113,7 +113,8 @@ public class WalSender extends Worker {
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
 
         if (currentState == AeronState.WAITING) {
-            if (!BYPASS_WAL) work += drainToWalOnly();
+            // WAITING：排空 Disruptor 防止堆積。WAL 模式寫入持久化，Bypass 模式丟棄。
+            work += BYPASS_WAL ? drainAndDiscard() : drainToWalOnly();
             return work;
         }
 
@@ -182,6 +183,19 @@ public class WalSender extends Worker {
         pollCount = 0;
         try { poller.poll(liveHandler); } catch (Exception e) { log.error("[WAL-SENDER] live processing failed", e); }
         if (pollCount > 0) localWriteCount += pollCount;
+        return pollCount;
+    }
+
+    // ===== BYPASS WAITING：排空 Disruptor 丟棄（防 RingBuffer 堆積）=====
+
+    private final EventPoller.Handler<WalEvent> discardHandler = (event, sequence, endOfBatch) -> {
+        pollCount++;
+        return true;
+    };
+
+    private int drainAndDiscard() {
+        pollCount = 0;
+        try { poller.poll(discardHandler); } catch (Exception ignored) {}
         return pollCount;
     }
 
