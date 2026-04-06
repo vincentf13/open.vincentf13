@@ -73,8 +73,8 @@ public class WalSender extends Worker {
 
     public WalSender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
         super("wal-sender",
-              MetricsKey.CPU_ID_WAL_WRITER, MetricsKey.CPU_ID_CURRENT_WAL_WRITER,
-              MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE);
+              MetricsKey.CPU_ID_WAL_SENDER, MetricsKey.CPU_ID_CURRENT_WAL_SENDER,
+              MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE);
         this.wal = Storage.self().gatewaySenderWal();
         this.ringBuffer = ringBuffer;
         this.poller = ringBuffer.newPoller();

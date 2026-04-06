@@ -23,7 +23,7 @@ public class TestVerificationController {
     private record CpuMetric(String name, long historyKey, long currentKey) {}
     private static final List<CpuMetric> CPU_METRICS = List.of(
         new CpuMetric("matching_receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER),
-        new CpuMetric("gateway_sender",    MetricsKey.CPU_ID_AERON_SENDER,   MetricsKey.CPU_ID_CURRENT_AERON_SENDER),
+        new CpuMetric("gateway_wal_sender", MetricsKey.CPU_ID_WAL_SENDER,     MetricsKey.CPU_ID_CURRENT_WAL_SENDER),
         new CpuMetric("netty_boss",        MetricsKey.CPU_ID_NETTY_BOSS,     MetricsKey.CPU_ID_CURRENT_NETTY_BOSS),
         new CpuMetric("netty_worker_1",    MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1),
         new CpuMetric("netty_worker_2",    MetricsKey.CPU_ID_NETTY_WORKER_2, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2),
@@ -237,8 +237,7 @@ public class TestVerificationController {
             row.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
             Map<String, Long> workers = entry.getValue();
             putDutyPercent(row, "matching_receiver", workers);
-            putDutyPercent(row, "gateway_wal_writer", workers);
-            putDutyPercent(row, "gateway_sender", workers);
+            putDutyPercent(row, "gateway_wal_sender", workers);
             putDutyPercent(row, "gateway_report_receiver", workers);
             result.add(row);
         }
@@ -252,8 +251,7 @@ public class TestVerificationController {
 
     private String dutyKeyToLabel(long dutyKey) {
         if (dutyKey == MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) return "matching_receiver";
-        if (dutyKey == MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE) return "gateway_sender";
-        if (dutyKey == MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE) return "gateway_wal_writer";
+        if (dutyKey == MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE) return "gateway_wal_sender";
         if (dutyKey == MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE) return "gateway_report_receiver";
         return null;
     }

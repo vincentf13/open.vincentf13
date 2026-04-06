@@ -33,8 +33,7 @@ public class MetricsWriter {
     private static final long DUTY_KEY_UNIT = 1_000_000_000_000L;
     private static final long[] DUTY_CYCLE_KEYS = {
         MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE,
-        MetricsKey.GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE,
-        MetricsKey.GATEWAY_WAL_WRITER_DUTY_CYCLE,
+        MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE,
         MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE,
     };
 

@@ -222,15 +222,14 @@ try {
     $gw_args = @(
         "@$gw_args_file",
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=3,4,5,6,7",
-        "-Dspot.wal.bypass=true",
+        "-Dspot.affinity.cores=3,4,5,6",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 49403 # 核心 3-7 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
+    $g.ProcessorAffinity = 49275 # 核心 3-6 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine
