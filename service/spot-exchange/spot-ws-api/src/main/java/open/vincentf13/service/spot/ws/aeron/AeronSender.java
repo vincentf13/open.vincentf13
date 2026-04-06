@@ -21,6 +21,8 @@ import open.vincentf13.service.spot.sbe.*;
 import org.agrona.MutableDirectBuffer;
 import org.springframework.stereotype.Component;
 
+import open.vincentf13.service.spot.ws.wal.WalBypassQueue;
+
 import java.nio.ByteOrder;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
@@ -75,23 +77,66 @@ public class AeronSender extends Worker {
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
         if (currentState == AeronState.WAITING) return work;
 
-        for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
-            try (var dc = tailer.readingDocument()) {
-                if (!dc.isPresent()) break;
-
-                long walIndex = dc.index();
-                if (walIndex == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
-
-                Wire wire = dc.wire();
-                if (wire == null) break;
-
-                if (!readAndSend(wire, walIndex)) break;
-
+        if (WalBypassQueue.ENABLED) {
+            // Bypass 模式：從 lock-free queue 讀取，跳過 Chronicle Queue mmap
+            for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
+                WalBypassQueue.Slot slot = WalBypassQueue.poll();
+                if (slot == null) break;
+                if (!sendFromSlot(slot)) break;
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
             }
+        } else {
+            for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
+                try (var dc = tailer.readingDocument()) {
+                    if (!dc.isPresent()) break;
+
+                    long walIndex = dc.index();
+                    if (walIndex == resumeSkipIndex) { resumeSkipIndex = Long.MIN_VALUE; continue; }
+
+                    Wire wire = dc.wire();
+                    if (wire == null) break;
+
+                    if (!readAndSend(wire, walIndex)) break;
+
+                    StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+                    work++;
+                }
+            }
         }
         return work;
+    }
+
+    /** Bypass 模式：從 WalBypassQueue.Slot 直接編碼 SBE 並發送 */
+    private boolean sendFromSlot(WalBypassQueue.Slot s) {
+        return switch (s.msgType) {
+            case MsgType.ORDER_CREATE -> {
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
+                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(s.timestamp).userId(s.userId).symbolId(s.symbolId)
+                        .price(s.price).qty(s.qty).side(Side.get((short) s.side)).clientOrderId(s.clientOrderId));
+            }
+            case MsgType.ORDER_CANCEL -> {
+                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
+                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(s.timestamp).userId(s.userId).orderId(s.orderId));
+            }
+            case MsgType.DEPOSIT -> {
+                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
+                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(s.timestamp).userId(s.userId).assetId(s.assetId).amount(s.amount));
+            }
+            case MsgType.AUTH -> {
+                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
+                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
+                        .timestamp(s.timestamp).userId(s.userId));
+            }
+            default -> true;
+        };
     }
 
     /**

@@ -223,6 +223,7 @@ try {
         "@$gw_args_file",
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=3,4,5,6,7",
+        "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",

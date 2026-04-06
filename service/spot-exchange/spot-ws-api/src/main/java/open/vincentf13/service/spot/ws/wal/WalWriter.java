@@ -57,7 +57,11 @@ public class WalWriter extends Worker {
 
     // 預分配 poller handler，避免 per-call lambda 分配 (busy-spin 每秒調用數百萬次)
     private final EventPoller.Handler<WalEvent> pollHandler = (event, sequence, endOfBatch) -> {
-        writeToWal(event);
+        if (WalBypassQueue.ENABLED) {
+            WalBypassQueue.offer(event);
+        } else {
+            writeToWal(event);
+        }
         pollCount++;
         return true;
     };
