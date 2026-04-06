@@ -45,6 +45,7 @@ public class AeronSender extends Worker {
     private AeronState currentState = AeronState.WAITING;
     private long localBackPressure = 0;
     private long resumeSkipIndex = Long.MIN_VALUE;
+    private long bypassSeq = 0; // bypass 模式的遞增序號
 
     // SBE 編碼器 (單線程獨佔，無需 ThreadLocal)
     private final MessageHeaderEncoder sbeHeaderEncoder = new MessageHeaderEncoder();
@@ -82,7 +83,7 @@ public class AeronSender extends Worker {
             for (int i = 0; i < AeronConstants.WAL_BATCH_SIZE; i++) {
                 WalBypassQueue.Slot slot = WalBypassQueue.poll();
                 if (slot == null) break;
-                if (!sendFromSlot(slot)) break;
+                if (!sendFromSlot(slot, ++bypassSeq)) break;
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
                 work++;
             }
@@ -108,30 +109,30 @@ public class AeronSender extends Worker {
     }
 
     /** Bypass 模式：從 WalBypassQueue.Slot 直接編碼 SBE 並發送 */
-    private boolean sendFromSlot(WalBypassQueue.Slot s) {
+    private boolean sendFromSlot(WalBypassQueue.Slot s, long seq) {
         return switch (s.msgType) {
             case MsgType.ORDER_CREATE -> {
                 int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
-                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                yield trySendSbe(s.msgType, len, seq, s.arrivalTimeNs, (buf, off) ->
                     orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
                         .timestamp(s.timestamp).userId(s.userId).symbolId(s.symbolId)
                         .price(s.price).qty(s.qty).side(Side.get((short) s.side)).clientOrderId(s.clientOrderId));
             }
             case MsgType.ORDER_CANCEL -> {
                 int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
-                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                yield trySendSbe(s.msgType, len, seq, s.arrivalTimeNs, (buf, off) ->
                     orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
                         .timestamp(s.timestamp).userId(s.userId).orderId(s.orderId));
             }
             case MsgType.DEPOSIT -> {
                 int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
-                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                yield trySendSbe(s.msgType, len, seq, s.arrivalTimeNs, (buf, off) ->
                     depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
                         .timestamp(s.timestamp).userId(s.userId).assetId(s.assetId).amount(s.amount));
             }
             case MsgType.AUTH -> {
                 int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
-                yield trySendSbe(s.msgType, len, 0, s.arrivalTimeNs, (buf, off) ->
+                yield trySendSbe(s.msgType, len, seq, s.arrivalTimeNs, (buf, off) ->
                     authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
                         .timestamp(s.timestamp).userId(s.userId));
             }
@@ -224,8 +225,11 @@ public class AeronSender extends Worker {
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset, ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
             long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, ByteOrder.LITTLE_ENDIAN);
-            log.info("AeronSender 握手成功，恢復位點: {}", walIndex);
-            if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) {
+            log.info("AeronSender 握手成功，恢復位點: {}，bypass={}", walIndex, WalBypassQueue.ENABLED);
+            if (WalBypassQueue.ENABLED) {
+                // Bypass 模式：不操作 tailer，直接用遞增序號
+                bypassSeq = (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE) ? 0 : walIndex;
+            } else if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !tailer.moveToIndex(walIndex)) {
                 tailer.toStart();
                 resumeSkipIndex = Long.MIN_VALUE;
             } else {
