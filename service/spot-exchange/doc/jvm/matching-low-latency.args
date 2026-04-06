@@ -34,11 +34,9 @@
 -XX:+UseZGC
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
--XX:ParallelGCThreads=4
-# ConcGCThreads=1：matching 只有 2 核（CPU 5,6），receiver busy-spin 在 CPU 5，
-# 只給 GC 一個 concurrent thread 跑在 CPU 6，避免與 receiver 競爭 CPU。
-# 代價：GC cycle 變長約 2 倍，但 matching 分配率極低、cycle 罕見，可接受。
--XX:ConcGCThreads=1
+-XX:ParallelGCThreads=8
+# ConcGCThreads=4：利用共享核心池 (0,1,14,15) 加速並行標記與重定位。
+-XX:ConcGCThreads=4
 -XX:ZAllocationSpikeTolerance=5.0
 # 關閉 ZGC 主動 GC：8GB heap + 低分配率下不需要 proactive cycle
 -XX:-ZProactive

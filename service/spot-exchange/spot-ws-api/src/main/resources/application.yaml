@@ -12,7 +12,7 @@ websocket:
 
 netty:
   worker:
-    count: 4
+    count: 3
 
 spring:
   application:

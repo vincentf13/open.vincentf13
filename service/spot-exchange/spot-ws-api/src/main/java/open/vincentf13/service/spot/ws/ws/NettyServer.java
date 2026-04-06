@@ -53,10 +53,10 @@ public class NettyServer {
         if (!started.compareAndSet(false, true)) return;
 
         new Thread(() -> {
-            bossGroup = new NioEventLoopGroup(1, AffinityUtil.newThreadFactory("netty-boss",
-                    new long[]{MetricsKey.CPU_ID_NETTY_BOSS},
-                    new long[]{MetricsKey.CPU_ID_CURRENT_NETTY_BOSS}));
+            // bossGroup 處理連線接收，壓力小，不綁定核心（共用共享執行緒）
+            bossGroup = new NioEventLoopGroup(1);
 
+            // workerGroup 處理命令編解碼與業務邏輯，維持核心綁定
             workerGroup = new NioEventLoopGroup(workerCount, AffinityUtil.newThreadFactory("netty-worker",
                     new long[]{MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4},

@@ -23,18 +23,46 @@ public class AffinityUtil {
     private static final Logger log = LoggerFactory.getLogger(AffinityUtil.class);
     private static final AtomicInteger assignedCount = new AtomicInteger(0);
     private static final ThreadLocal<Boolean> isBound = ThreadLocal.withInitial(() -> false);
+    private static final BitSet DEDICATED_CORES = initDedicatedCores();
+
+    private static BitSet initDedicatedCores() {
+        String cores = System.getProperty("spot.affinity.cores");
+        if (cores == null || cores.isEmpty()) return null;
+        BitSet mask = new BitSet();
+        for (String s : cores.split(",")) {
+            try {
+                mask.set(Integer.parseInt(s.trim()));
+            } catch (NumberFormatException ignored) {}
+        }
+        return mask;
+    }
 
     /** 自動分配並綁定一個可用核心，回傳核心 ID (-1 表示失敗) */
     public static int acquireAndBind() {
         if (isBound.get()) return -1;
         try {
-            BitSet mask = Affinity.getAffinity();
-            int totalAvailable = mask.cardinality();
+            BitSet processMask = Affinity.getAffinity();
+            BitSet targetPool = processMask;
+
+            // 如果有配置專屬核心範圍，則與進程准許的掩碼取交集
+            if (DEDICATED_CORES != null) {
+                targetPool = (BitSet) DEDICATED_CORES.clone();
+                targetPool.and(processMask);
+            }
+
+            int totalAvailable = targetPool.cardinality();
             if (totalAvailable <= 0) return -1;
 
-            int targetIdx = Math.abs(assignedCount.getAndIncrement() % totalAvailable);
+            int currentAssigned = assignedCount.getAndIncrement();
+            // 如果是專屬模式且核心已用盡，則不進行綁定，讓其在進程範圍內漂移 (GC 共享區)
+            if (DEDICATED_CORES != null && currentAssigned >= totalAvailable) {
+                log.warn("[AFFINITY] 專屬核心 {} 已用盡，{} 將不進行綁定 (改為自由調度)", DEDICATED_CORES, Thread.currentThread().getName());
+                return -1;
+            }
+
+            int targetIdx = Math.abs(currentAssigned % totalAvailable);
             int targetCore = -1, currentIdx = 0;
-            for (int i = mask.nextSetBit(0); i >= 0; i = mask.nextSetBit(i + 1)) {
+            for (int i = targetPool.nextSetBit(0); i >= 0; i = targetPool.nextSetBit(i + 1)) {
                 if (currentIdx++ == targetIdx) { targetCore = i; break; }
             }
 
@@ -43,12 +71,13 @@ public class AffinityUtil {
                 next.set(targetCore);
                 Affinity.setAffinity(next);
                 isBound.set(true);
-                log.info("[AFFINITY] {} 鎖定核心: {}", Thread.currentThread().getName(), targetCore);
+                log.info("[AFFINITY] {} 鎖定專屬核心: {}", Thread.currentThread().getName(), targetCore);
                 return targetCore;
             }
-        } catch (Exception e) { log.error("[AFFINITY] 綁定��敗: {}", e.getMessage()); }
+        } catch (Exception e) { log.error("[AFFINITY] 綁定失敗: {}", e.getMessage()); }
         return -1;
     }
+
 
     /** 取得當前線程的物理核心 ID */
     public static int currentCpu() {

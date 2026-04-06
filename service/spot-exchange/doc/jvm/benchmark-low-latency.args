@@ -8,8 +8,8 @@
 -XX:+UseZGC
 -XX:-ZProactive
 -XX:ZUncommitDelay=3600
--XX:ParallelGCThreads=2
--XX:ConcGCThreads=1
+-XX:ParallelGCThreads=8
+-XX:ConcGCThreads=4
 
 # --- 小 heap 足夠，benchmark 壓力有限 ---
 -Xms2g

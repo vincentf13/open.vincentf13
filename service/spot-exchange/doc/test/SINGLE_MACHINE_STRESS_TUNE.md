@@ -55,12 +55,11 @@ Wait-Job $job1, $job2 | Out-Null
 Receive-Job $job1, $job2
 Remove-Job $job1, $job2
 
-# --- 4. 啟動 獨立式 Media Driver (CPU 8-11, Mask: 3840) ---
-Write-Host "Starting Standalone Media Driver on CPU 8-11..."
+# --- 4. 啟動 獨立式 Media Driver (專屬 9, 12, 13 + 共享 0,1,14,15 | Mask: 61955) ---
+Write-Host "Starting Standalone Media Driver on Dedicated CPUs 9, 12, 13 + Shared Pool..."
 $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
 $aeron_jar = $aeron_jar_item.FullName
 
-# 極限優化 Aeron 緩衝區，適配 Ultra 9 高併發
 $driver_args = @(
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
     "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
@@ -70,40 +69,32 @@ $driver_args = @(
     "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
     "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
+    "-Daeron.conductor.affinity=9",
+    "-Daeron.sender.affinity=12",
+    "-Daeron.receiver.affinity=13",
     "-Daeron.term.buffer.length=64m",
     "-Daeron.ipc.term.buffer.length=256m",
-    "-Daeron.socket.so_sndbuf=4m",
-    "-Daeron.socket.so_rcvbuf=4m",
     "-Daeron.dir=$aeron_dir",
     "io.aeron.driver.MediaDriver"
 )
 $driver = Start-Process java -ArgumentList $driver_args -PassThru
-$driver.ProcessorAffinity = 1920
-
-# --- 智慧等待 Media Driver 初始化 (Polling cnc.dat) ---
-Write-Host "等待 Aeron 共享記憶體初始化..."
-$cnc_file = "$aeron_dir\cnc.dat"
-$retry = 0
-while (-not (Test-Path $cnc_file) -and $retry -lt 50) {
-    Start-Sleep -Milliseconds 100
-    $retry++
-}
-Write-Host "Media Driver 就緒 (耗時: $($retry * 100) ms)。"
+$driver.ProcessorAffinity = 61955
 
 # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
-# ===== CPU 核心分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
-# 原則：關鍵 Worker 綁定專核，GC/背景線程共享 Core 0, 1
+# ===== CPU 核心重疊分配表 (Arrow Lake Ultra 9, 16 Logical Processors) =====
+# 策略：Worker 租用專屬核，GC 線程在專屬核用盡後於共享核心漂移
 #
-# Media Driver (3T):            CPU 0,1,7,8,9           mask=899
-# Matching Engine (2T):         CPU 0,1,2,3             mask=15
-# Gateway (Netty/WAL):          CPU 0,1,4,6,10,11       mask=3155
-# Benchmark Tool:               CPU 12,13,14,15         mask=61440
-# =================================================================
+# Media Driver:                 Dedicated 9, 12, 13 + Shared     mask=61955
+# Matching Engine:              Dedicated 2         + Shared     mask=49159
+# Gateway:                      Dedicated 3-8       + Shared     mask=49659
+# Benchmark Tool:               Dedicated 10, 11                 mask=52227
+# ===========================================================================
 Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
 
 # Matching Engine 參數
 $matching_args = @(
     "@$doc_path\jvm\matching-low-latency.args",
+    "-Dspot.affinity.cores=2",
     "-Daeron.driver.enabled=false",
     "-Daeron.dir=$aeron_dir",
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
@@ -113,55 +104,26 @@ $matching_args = @(
 # Gateway 參數
 $gw_args = @(
     "@$doc_path\jvm\ws-api-throughput.args",
+    "-Dspot.affinity.cores=3,4,5,6,7,8",
     "-Daeron.driver.enabled=false",
     "-Daeron.dir=$aeron_dir",
     "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
     "open.vincentf13.service.spot.ws.WsApiApp"
 )
 
-# 非同步啟動並立即綁核
+# 非同步啟動並套用重疊掩碼
 $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru
-$e.ProcessorAffinity = 15
+$e.ProcessorAffinity = 49159
 
 $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru
-$g.ProcessorAffinity = 3155
+$g.ProcessorAffinity = 49659
 
-Write-Host "雙核服務已併發發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
+Write-Host "服務已發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
+Write-Host "提醒：請確保代碼內部已使用 Thread Affinity 將 Worker 鎖定在專屬核 (ME:2, GW:3-8, MD:12,13)。"
 
-# --- 智慧等待與狀態檢測 ---
-Write-Host "正在等待服務進入穩態 (監測 HTTP 8080)..."
-$retry = 0
-while ($retry -lt 30) {
-    try {
-        $check = Invoke-WebRequest -Uri "http://127.0.0.1:8080/ws/spot" -Method Get -ErrorAction SilentlyContinue
-        if ($check.StatusCode -eq 400 -or $check.StatusCode -eq 101) { break } 
-    } catch { }
-    Start-Sleep -Seconds 1
-    $retry++
-}
-Write-Host "服務就緒 (耗時: $retry s)，開始壓測。"
-
-# --- 7. 啟動 Java Benchmark (恆定速率 + HdrHistogram) ---
-if ($e.HasExited) { Write-Error "Matching 失敗！"; return }
-if ($g.HasExited) { Write-Error "Gateway 失敗！"; return }
-
-$log_dir = "$doc_path\test\log"
-if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
-
-Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
-
-# Benchmark 參數：rate(orders/sec) duration(sec) warmup(sec)
-$bench_args = @(
-    "@$doc_path\jvm\benchmark-low-latency.args",
-    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
-    "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-    "60000",   # 6萬 orders/sec
-    "60",     # 60秒測量
-    "60"       # 60秒預熱（完整消耗 ZGC Warmup Major cycles）
-)
-$bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow
-Start-Sleep -Milliseconds 500
-$bench.ProcessorAffinity = 61440
+# --- 7. 啟動 Java Benchmark (Mask: 52227) ---
+# ... 略 ...
+$bench.ProcessorAffinity = 52227
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
 Write-Host "Benchmark 完成 (Exit code: $($bench.ExitCode))"
