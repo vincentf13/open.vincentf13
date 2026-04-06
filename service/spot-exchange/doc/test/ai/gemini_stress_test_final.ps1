@@ -18,7 +18,6 @@ public class HighPrecisionTimer {
 
     public static void SetMaxResolution() {
         uint current;
-        // 5000 units = 0.5ms (1 unit = 100ns)
         NtSetTimerResolution(5000, true, out current);
     }
     
@@ -41,6 +40,11 @@ if ($schemeOutput -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0
 }
 $ultimateScheme = "e9a42b02-d5df-448d-aa00-03f14749eb61" # 卓越效能 GUID
 
+# 網卡屬性記錄與切換
+$nicName = (Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object -First 1).Name
+$originalCoalescing = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -ErrorAction SilentlyContinue).DisplayValue
+$originalMimo = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -ErrorAction SilentlyContinue).DisplayValue
+
 # 安全清理函數
 function Safe-Remove($path) {
     if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path) -and $path -like "*open.vincentf13*") {
@@ -50,9 +54,13 @@ function Safe-Remove($path) {
 }
 
 try {
-    Write-Host ">>> [OS] 開啟高精度時鐘 (0.5ms) 並切換至卓越效能模式..."
+    Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、切換至卓越效能..."
     [HighPrecisionTimer]::SetMaxResolution()
     powercfg /setactive $ultimateScheme
+    
+    # 關閉網卡干擾屬性
+    if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue }
+    if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue "No SMPS" -ErrorAction SilentlyContinue }
 
     # 確保日誌目錄存在
     if (!(Test-Path $log_path)) { New-Item -ItemType Directory -Force $log_path }
@@ -71,7 +79,7 @@ try {
     # 建立 map 目錄避免 IOException
     New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
 
-    # --- 2. 啟動 獨立式 Media Driver (Mask: 61955) ---
+    # --- 2. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 53251) ---
     Write-Host "Starting Standalone Media Driver..."
     $m_dest = "$base_path\service\spot-exchange\spot-matching\target\extracted"
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
@@ -87,7 +95,7 @@ try {
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=9",
+        "-Daeron.conductor.affinity=0",
         "-Daeron.sender.affinity=12",
         "-Daeron.receiver.affinity=13",
         "-Daeron.term.buffer.length=64m",
@@ -96,11 +104,11 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 61955
+    $driver.ProcessorAffinity = 53251
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 3. 啟動 Matching Engine (2GB) ---
-    Write-Host "Starting Matching Engine (2GB)..."
+    # --- 3. 啟動 Matching Engine (2GB, P-Core 2 | Mask: 49159) ---
+    Write-Host "Starting Matching Engine (2GB, P-Core 2)..."
     $matching_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
@@ -116,21 +124,21 @@ try {
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $e.MinWorkingSet = $e.MaxWorkingSet
 
-    # --- 4. 啟動 Gateway (WS-API) (2GB) ---
-    Write-Host "Starting Gateway (WS-API) (2GB)..."
+    # --- 4. 啟動 Gateway (WS-API) (2GB, P-Cores 3-7 | Mask: 49279) ---
+    Write-Host "Starting Gateway (WS-API) (2GB, P-Cores 3-7)..."
     $g_dest = "$base_path\service\spot-exchange\spot-ws-api\target\extracted"
     $gw_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
         "-Xms2G", "-Xmx2G",
-        "-Dspot.affinity.cores=3,4,5,6,7,8",
+        "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 49659
+    $g.ProcessorAffinity = 49279
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $g.MinWorkingSet = $g.MaxWorkingSet
 
@@ -155,11 +163,15 @@ try {
     $bench.WaitForExit()
 
 } finally {
-    Write-Host ">>> [OS] 還原系統環境並清理進程..."
+    Write-Host ">>> [OS] 還原系統環境、網卡省電設定並清理進程..."
     if ([PSObject].Assembly.GetType("HighPrecisionTimer")) {
         [HighPrecisionTimer]::ResetResolution()
     }
     if ($currentScheme) { powercfg /setactive $currentScheme }
+    
+    # 還原網卡屬性
+    if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue $originalCoalescing -ErrorAction SilentlyContinue }
+    if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue $originalMimo -ErrorAction SilentlyContinue }
     
     # 確保關閉所有啟動的服務
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
