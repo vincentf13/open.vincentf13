@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import net.openhft.chronicle.map.ChronicleMap;
+import org.agrona.collections.Long2LongHashMap;
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.CidKey;
@@ -17,11 +18,14 @@ import open.vincentf13.service.spot.model.CidKey;
  */
 public class IdempotencyGuard implements DiskSink {
     private static final int BUFFER_SIZE = 65536;
+    private static final long MISSING = Long.MIN_VALUE;
 
     private static final class Buffer {
         final long[] uids = new long[BUFFER_SIZE];
         final long[] cids = new long[BUFFER_SIZE];
         final long[] oids = new long[BUFFER_SIZE];
+        /** O(1) 查詢：key = userId ^ clientOrderId，value = orderId。取代 O(n) 線性掃描 */
+        final Long2LongHashMap index = new Long2LongHashMap(BUFFER_SIZE, 0.6f, MISSING);
         int count = 0;
     }
 
@@ -39,21 +43,17 @@ public class IdempotencyGuard implements DiskSink {
     private final CidKey flusherKey = new CidKey();
     private final LongValue flusherValue = new LongValue();
 
-    /** 檢查是否為重複指令（matching thread 呼叫）：先查 active + draining 緩衝，再查磁碟 */
+    private static long cidKey(long userId, long clientOrderId) { return userId ^ (clientOrderId * 0x9E3779B97F4A7C15L); }
+
+    /** 檢查是否為重複指令（matching thread 呼叫）：O(1) HashMap 查 active + draining，可選跳過磁碟 */
     public boolean isDuplicate(long userId, long clientOrderId) {
-        // 1. 查 active（當前 matching thread 正在寫入的緩衝）
-        Buffer a = active;
-        for (int i = 0; i < a.count; i++) {
-            if (a.uids[i] == userId && a.cids[i] == clientOrderId) return true;
-        }
-        // 2. 查 draining（等待 flusher 寫入磁碟的緩衝，仍算在途）
+        long key = cidKey(userId, clientOrderId);
+        // 1. O(1) 查 active
+        if (active.index.get(key) != MISSING) return true;
+        // 2. O(1) 查 draining
         Buffer d = draining;
-        if (d != null) {
-            for (int i = 0; i < d.count; i++) {
-                if (d.uids[i] == userId && d.cids[i] == clientOrderId) return true;
-            }
-        }
-        // 3. 查磁碟
+        if (d != null && d.index.get(key) != MISSING) return true;
+        // 3. 查磁碟（只有重啟後的歷史訂單在 disk 上）
         matchingKey.set(userId, clientOrderId);
         return diskMap.containsKey(matchingKey);
     }
@@ -61,12 +61,12 @@ public class IdempotencyGuard implements DiskSink {
     /** 記錄新的冪等映射（matching thread 呼叫） */
     public void record(long userId, long clientOrderId, long orderId) {
         if (active.count >= BUFFER_SIZE) {
-            // 極端情況：flusher 落後，緩衝寫滿。強制等待翻轉（短暫 spin）
             forceRotateOrInlineFlush();
         }
         active.uids[active.count] = userId;
         active.cids[active.count] = clientOrderId;
         active.oids[active.count] = orderId;
+        active.index.put(cidKey(userId, clientOrderId), orderId);
         active.count++;
     }
 
@@ -93,6 +93,7 @@ public class IdempotencyGuard implements DiskSink {
             diskMap.put(flusherKey, flusherValue);
         }
         d.count = 0;
+        d.index.clear();
         draining = null;                         // volatile write，釋放給 matching
     }
 
@@ -100,8 +101,9 @@ public class IdempotencyGuard implements DiskSink {
     public void clearDisk() {
         diskMap.clear();
         active.count = 0;
+        active.index.clear();
         Buffer d = draining;
-        if (d != null) d.count = 0;
+        if (d != null) { d.count = 0; d.index.clear(); }
         draining = null;
     }
 
