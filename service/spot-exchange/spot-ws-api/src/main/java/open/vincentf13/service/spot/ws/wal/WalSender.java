@@ -101,6 +101,9 @@ public class WalSender extends Worker {
         log.info("[WAL-SENDER] 初始化完成，合併 WAL 寫入 + Aeron 發送");
     }
 
+    private static final boolean BYPASS_WAL = Boolean.getBoolean("spot.wal.bypass");
+    private long bypassSeq = 0;
+
     // ===== 主迴圈 =====
 
     @Override
@@ -110,20 +113,18 @@ public class WalSender extends Worker {
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
 
         if (currentState == AeronState.WAITING) {
-            // WAITING：仍寫 WAL (持久化)，但不送 Aeron
-            work += drainToWalOnly();
+            if (!BYPASS_WAL) work += drainToWalOnly();
             return work;
         }
 
-        if (replaying) {
-            // REPLAY：從 WAL tailer 追趕歷史資料 → Aeron，同時排空 Disruptor 新資料 → WAL
+        if (replaying && !BYPASS_WAL) {
             work += replayFromWal();
             work += drainToWalOnly();
             return work;
         }
 
-        // LIVE：Disruptor → WAL → Aeron (同一線程，無跨線程 handoff)
-        work += processLive();
+        // LIVE (或 BYPASS)
+        work += BYPASS_WAL ? processBypass() : processLive();
         return work;
     }
 
@@ -180,6 +181,22 @@ public class WalSender extends Worker {
     private int processLive() {
         pollCount = 0;
         try { poller.poll(liveHandler); } catch (Exception e) { log.error("[WAL-SENDER] live processing failed", e); }
+        if (pollCount > 0) localWriteCount += pollCount;
+        return pollCount;
+    }
+
+    // ===== BYPASS 模式：跳過 WAL，Disruptor → Aeron 直送 =====
+
+    private final EventPoller.Handler<WalEvent> bypassHandler = (event, sequence, endOfBatch) -> {
+        sendFromEvent(event, ++bypassSeq);
+        StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+        pollCount++;
+        return true;
+    };
+
+    private int processBypass() {
+        pollCount = 0;
+        try { poller.poll(bypassHandler); } catch (Exception e) { log.error("[WAL-SENDER] bypass failed", e); }
         if (pollCount > 0) localWriteCount += pollCount;
         return pollCount;
     }
@@ -317,17 +334,19 @@ public class WalSender extends Worker {
     private final FragmentHandler resumeHandler = (buffer, offset, length, header) -> {
         if (buffer.getInt(offset, ByteOrder.LITTLE_ENDIAN) == MsgType.RESUME && currentState == AeronState.WAITING) {
             long walIndex = buffer.getLong(offset + AeronConstants.MSG_SEQ_OFFSET, ByteOrder.LITTLE_ENDIAN);
-            log.info("[WAL-SENDER] RESUME 握手成功，恢復位點: {}", walIndex);
+            log.info("[WAL-SENDER] RESUME 握手成功，恢復位點: {}，bypass={}", walIndex, BYPASS_WAL);
 
-            if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !replayTailer.moveToIndex(walIndex)) {
-                replayTailer.toStart();
-                resumeSkipIndex = Long.MIN_VALUE;
+            if (BYPASS_WAL) {
+                bypassSeq = (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE) ? 0 : walIndex;
             } else {
-                resumeSkipIndex = walIndex;
+                if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !replayTailer.moveToIndex(walIndex)) {
+                    replayTailer.toStart();
+                    resumeSkipIndex = Long.MIN_VALUE;
+                } else {
+                    resumeSkipIndex = walIndex;
+                }
+                replaying = true;
             }
-
-            // 判斷是否需要 replay：tailer 位置 < appender 位置
-            replaying = true;
             currentState = AeronState.SENDING;
         }
     };
