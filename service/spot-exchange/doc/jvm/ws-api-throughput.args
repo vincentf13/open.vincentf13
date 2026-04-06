@@ -57,6 +57,8 @@
 # --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA
 -XX:+PerfDisableSharedMem
+-XX:+UnlockDiagnosticVMOptions
+-XX:GuaranteedSafepointInterval=0
 -XX:-RestrictContended
 
 # --- JIT 編譯與 Netty 優化 ---

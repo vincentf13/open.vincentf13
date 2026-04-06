@@ -62,7 +62,6 @@
 # --- Arrow Lake P-core & 物理層優化 ---
 -XX:+UseNUMA
 -XX:+PerfDisableSharedMem
--XX:+UnlockDiagnosticVMOptions
 -XX:GuaranteedSafepointInterval=0
 # 允許 @Contended 註解在非 JDK 類別生效 (Cache Line Padding)
 -XX:-RestrictContended

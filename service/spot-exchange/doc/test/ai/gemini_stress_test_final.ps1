@@ -1,6 +1,10 @@
 # ==============================================================================
-# Aeron 交易系統自動化部署與啟動腳本 (Gemini 最終優化分析版)
+# Aeron 交易系統自動化部署與啟動腳本
+# 用法：
+#   .\gemini_stress_test_final.ps1              # 純壓測 (最低延遲)
+#   .\gemini_stress_test_final.ps1 -Diagnose    # 壓測 + AI 診斷工具
 # ==============================================================================
+param([switch]$Diagnose)
 
 $base_path = "C:\iProject\open.vincentf13"
 $aeron_dir = "$base_path\data\spot-exchange"
@@ -271,47 +275,53 @@ try {
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
-    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，開始背景中斷監控..."
+    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 
-    # 背景抓取 Gateway heap histogram (預熱結束時 + 測量中段)
-    $heapJob = Start-Job -ScriptBlock {
-        param($targetPid, $logDir)
-        Start-Sleep -Seconds 55  # 預熱接近結束時 (60s warmup)
-        jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_warmup.log"
-        Start-Sleep -Seconds 20  # 測量中段
-        jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_measure.log"
-    } -ArgumentList $g.Id, $log_path
+    # --- [Diagnose] 背景診斷工具 (僅 -Diagnose 模式啟用，避免影響延遲) ---
+    if ($Diagnose) {
+        Write-Host ">>> [Diagnose] 啟用 AI 診斷工具 (heap histogram, 中斷監控, 內部指標)..."
 
-    # 背景監控核心 2-7 的中斷佔比 (每 5 秒取樣一次)
-    $interruptLog = "$log_path\interrupt_stats.log"
-    "Time, Core, InterruptTime(%)" | Out-File $interruptLog
-    $monitorTask = Start-Job -ScriptBlock {
-        param($logFile)
-        while($true) {
-            $samples = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-7]$" }
-            $timestamp = Get-Date -Format "HH:mm:ss"
-            foreach($s in $samples) {
-                "$timestamp, Core $($s.InstanceName), $($s.CookedValue.ToString('F2'))" | Out-File $logFile -Append
+        $heapJob = Start-Job -ScriptBlock {
+            param($targetPid, $logDir)
+            Start-Sleep -Seconds 55  # 預熱接近結束時 (60s warmup)
+            jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_warmup.log"
+            Start-Sleep -Seconds 20  # 測量中段
+            jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_measure.log"
+        } -ArgumentList $g.Id, $log_path
+
+        $interruptLog = "$log_path\interrupt_stats.log"
+        "Time, Core, InterruptTime(%)" | Out-File $interruptLog
+        $monitorTask = Start-Job -ScriptBlock {
+            param($logFile)
+            while($true) {
+                $samples = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-7]$" }
+                $timestamp = Get-Date -Format "HH:mm:ss"
+                foreach($s in $samples) {
+                    "$timestamp, Core $($s.InstanceName), $($s.CookedValue.ToString('F2'))" | Out-File $logFile -Append
+                }
+                Start-Sleep -Seconds 5
             }
-            Start-Sleep -Seconds 5
-        }
-    } -ArgumentList $interruptLog
+        } -ArgumentList $interruptLog
+    }
 
     $bench.WaitForExit()
-    Stop-Job $monitorTask
-    Remove-Job $monitorTask
+
+    # --- 清理診斷 Jobs ---
+    if ($monitorTask) { Stop-Job $monitorTask; Remove-Job $monitorTask }
     if ($heapJob) { Wait-Job $heapJob -Timeout 10; Stop-Job $heapJob -ErrorAction SilentlyContinue; Remove-Job $heapJob -ErrorAction SilentlyContinue }
 
-    # --- 7. 抓取內部指標數據 (追加分析) ---
-    Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
-    try {
-        $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
-        $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
-        $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
-        $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
-        Write-Host "內部指標抓取成功，已存至 $log_path"
-    } catch {
-        Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
+    # --- 7. 抓取內部指標數據 (僅 -Diagnose 模式) ---
+    if ($Diagnose) {
+        Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
+        try {
+            $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
+            $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
+            $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
+            $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
+            Write-Host "內部指標抓取成功，已存至 $log_path"
+        } catch {
+            Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
+        }
     }
 
 } finally {
