@@ -39,9 +39,18 @@
     *   **無滴答模式**：開啟 `nohz_full` 減少系統時鐘中斷干擾。
     *   **中斷綁定**：設定 `smp_affinity` 將網卡中斷鎖定在特定共享核心。
 
-### 五、 時鐘 (Clock)
+### 五、 時鐘與穩定性 (Clock & Stability)
 *   **Windows**
     *   **解析度**：預設為 15.6ms，壓測期間需強制鎖定在 **0.5ms** (Timer Resolution)。
+    *   **忙轉與 BIOS 協同**：
+        *   **現狀**：雖然 Java 程式已配置「忙轉 (Busy-Spin)」，但 OS 中斷或節能機制仍可能觸發微秒級的頻率下降或休眠。
+        *   **建議**：在 BIOS 中關閉 **C-States** (防止休眠) 與 **SpeedStep/Speed Shift** (防止降頻)，確保交易核心 (Core 2-7) 始終處於 **C0 (滿血)** 狀態與 **固定最高頻率**。
 *   **Linux**
     *   **時鐘源**：確保使用 `tsc` 作為時鐘源。
     *   **同步**：部署 PTP (Precision Time Protocol) 確保微秒級的跨機時序一致。
+
+### 六、 BIOS 深度優化 (Jitter 終極消除)
+在高頻場景中，即使有軟體層級的預熱與忙轉，硬體層級的自動節能依然是 P99 抖動的元兇。
+1.  **停用 C-States (C1E, C3, C6, C7)**：徹底消除 CPU 從休眠狀態喚醒 (Wakeup Latency) 所需的 20μs~100μs 延遲。
+2.  **停用 Intel SpeedStep / EIST**：鎖定電壓與頻率，防止頻率切換 (P-state transition) 造成的指令執行波動。
+3.  **停用超執行緒 (Hyper-Threading)**：消除兩個邏輯執行緒競爭同一個實體核心的 L1/L2 快取，提升執行時間的確定性 (Determinism)。
