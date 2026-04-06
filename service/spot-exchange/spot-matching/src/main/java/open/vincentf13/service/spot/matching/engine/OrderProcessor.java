@@ -168,7 +168,10 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 timestamp, gatewaySequence, freezeAmount, progress, this);
         taker.validateState();
         idempotencyGuard.record(userId, clientOrderId, orderId);
-        reporter.reportAccepted(taker);
+        // 有成交時 match report 已包含 orderId，不需要額外發 accepted (省 1 次 Aeron tryClaim)
+        if (taker.getFilled() == 0) {
+            reporter.reportAccepted(taker);
+        }
         // taker 若完全成交（FILLED in match），此時 snap 已在 buffer，working order 可回池
         if (taker.isTerminal()) MatchingPool.releaseOrder(taker);
     }
