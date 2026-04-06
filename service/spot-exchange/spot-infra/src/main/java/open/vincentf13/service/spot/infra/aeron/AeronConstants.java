@@ -8,10 +8,8 @@ public class AeronConstants {
     /** 指標統計批次大小 */
     public static final int METRICS_BATCH_SIZE = 5000;
 
-    /** Aeron 訂閱輪詢限制 — 降低以減少 batch head-of-line blocking
-     *  256 → 8：每次 poll 最多處理 8 筆，p90 transport 從 32μs 降至理論 ~8μs。
-     *  CPU duty cycle ~20% 足夠支撐高頻 poll。 */
-    public static final int AERON_POLL_LIMIT = 8;
+    /** Aeron 訂閱輪詢限制 */
+    public static final int AERON_POLL_LIMIT = 256;
 
     /** RESUME 握手信號的總長度 */
     public static final int RESUME_SIGNAL_LENGTH = 16;
