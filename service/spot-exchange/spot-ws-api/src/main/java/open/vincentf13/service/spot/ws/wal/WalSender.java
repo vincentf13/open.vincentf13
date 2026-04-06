@@ -382,7 +382,7 @@ public class WalSender extends Worker {
     @Override
     protected void onStop() {
         // 排空 Disruptor 殘留事件
-        try { poller.poll(walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
+        try { poller.poll(BYPASS_WAL ? discardHandler : walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
         if (publication != null) publication.close();
         if (controlSub != null) controlSub.close();
         log.info("[WAL-SENDER] 已停止");
