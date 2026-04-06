@@ -122,7 +122,22 @@ Write-Host "服務已發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id))"
 Write-Host "提醒：請確保代碼內部已使用 Thread Affinity 將 Worker 鎖定在專屬核 (ME:2, GW:3-8, MD:12,13)。"
 
 # --- 7. 啟動 Java Benchmark (Mask: 52227) ---
-# ... 略 ...
+$log_dir = "$doc_path\test\log"
+if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
+
+Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
+
+# Benchmark 參數：rate(orders/sec) duration(sec) warmup(sec)
+$bench_args = @(
+    "@$doc_path\jvm\benchmark-low-latency.args",
+    "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+    "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
+    "60000",   # 6萬 orders/sec
+    "60",     # 60秒測量
+    "60"       # 60秒預熱
+)
+$bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow    
+Start-Sleep -Milliseconds 500
 $bench.ProcessorAffinity = 52227
 Write-Host "Benchmark (PID: $($bench.Id)) 已綁核，等待完成..."
 $bench.WaitForExit()
