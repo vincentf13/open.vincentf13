@@ -75,7 +75,8 @@ public class BenchmarkTool {
             Channel ch = new Bootstrap()
                     .group(group)
                     .channel(NioSocketChannel.class)
-                    .option(io.netty.channel.ChannelOption.TCP_NODELAY, true)
+                    // 不開 TCP_NODELAY：Nagle batching 增加 p50/p90 但降低 p99
+                    // （個別 segment 太多 → OS syscall/中斷 → 搶佔業務核心）
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override protected void initChannel(SocketChannel sc) {
                             sc.pipeline().addLast(
