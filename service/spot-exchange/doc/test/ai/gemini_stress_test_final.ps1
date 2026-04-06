@@ -146,7 +146,7 @@ try {
     Start-Sleep -Seconds 20
 
     # --- 5. 啟動 Java Benchmark ---
-    Write-Host "Starting Java Benchmark..."
+    Write-Host "Starting Java Benchmark with Interrupt Monitoring..."
     $bench_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
@@ -159,8 +159,26 @@ try {
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 52227
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
-    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，等待完成..."
+    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，開始背景中斷監控..."
+
+    # 背景監控核心 2-7 的中斷佔比 (每 5 秒取樣一次)
+    $interruptLog = "$log_path\interrupt_stats.log"
+    "Time, Core, InterruptTime(%)" | Out-File $interruptLog
+    $monitorTask = Start-Job -ScriptBlock {
+        param($logFile)
+        while($true) {
+            $samples = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-7]$" }
+            $timestamp = Get-Date -Format "HH:mm:ss"
+            foreach($s in $samples) {
+                "$timestamp, Core $($s.InstanceName), $($s.CookedValue.ToString('F2'))" | Out-File $logFile -Append
+            }
+            Start-Sleep -Seconds 5
+        }
+    } -ArgumentList $interruptLog
+
     $bench.WaitForExit()
+    Stop-Job $monitorTask
+    Remove-Job $monitorTask
 
 } finally {
     Write-Host ">>> [OS] 還原系統環境、網卡省電設定並清理進程..."
