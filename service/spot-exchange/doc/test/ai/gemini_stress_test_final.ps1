@@ -180,6 +180,18 @@ try {
     Stop-Job $monitorTask
     Remove-Job $monitorTask
 
+    # --- 6. 抓取內部指標數據 (追加分析) ---
+    Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
+    try {
+        $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
+        $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
+        $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
+        $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
+        Write-Host "內部指標抓取成功，已存至 $log_path"
+    } catch {
+        Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
+    }
+
 } finally {
     Write-Host ">>> [OS] 還原系統環境、網卡省電設定並清理進程..."
     if ([PSObject].Assembly.GetType("HighPrecisionTimer")) {
