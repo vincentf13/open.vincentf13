@@ -50,8 +50,9 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
-# Large Pages 由 Matching Engine 獨佔，Gateway 不啟用以避免大頁池耗盡
-# -XX:+UseLargePages
+# Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
+# 需 OS 配置：Windows「鎖定記憶體中的分頁」權限；Linux: vm.nr_hugepages
+-XX:+UseLargePages
 
 # --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA

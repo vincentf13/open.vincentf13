@@ -49,7 +49,7 @@ public class MemoryCompactor {
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetCurrentProcess();
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     private struct TOKEN_PRIVILEGES {
         public int PrivilegeCount;
         public long Luid;
@@ -60,11 +60,19 @@ public class MemoryCompactor {
     private const uint TOKEN_QUERY = 0x0008;
     private const int SE_PRIVILEGE_ENABLED = 0x00000002;
     private const int SystemMemoryListInformation = 80;
+    private const int MemoryEmptyWorkingSets = 1;
+    private const int MemoryFlushModifiedList = 2;
     private const int MemoryPurgeStandbyList = 4;
 
+    /// <summary>
+    /// 三階段物理記憶體整合：
+    ///   1. EmptyWorkingSets  — 將所有進程的 Working Set 頁框釋回 Standby/Modified List
+    ///   2. FlushModifiedList — 將 Modified 頁框寫入磁碟後釋放為 Free
+    ///   3. PurgeStandbyList  — 將 Standby 頁框直接釋放為 Free
+    /// 三步完成後，OS 可用的連續物理頁框最大化，Large Pages 分配成功率最高。
+    /// </summary>
     public static bool PurgeStandbyList() {
         try {
-            // 提權：啟用 SeProfileSingleProcessPrivilege
             IntPtr token;
             if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out token))
                 return false;
@@ -77,9 +85,17 @@ public class MemoryCompactor {
 
             AdjustTokenPrivileges(token, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
 
-            // 清空 Standby List
-            int command = MemoryPurgeStandbyList;
-            int result = NtSetSystemInformation(SystemMemoryListInformation, ref command, sizeof(int));
+            // Phase 1: 清空所有進程 Working Set → 頁框移入 Standby/Modified
+            int cmd1 = MemoryEmptyWorkingSets;
+            NtSetSystemInformation(SystemMemoryListInformation, ref cmd1, sizeof(int));
+
+            // Phase 2: 將 Modified 頁框刷入磁碟 → 釋放為 Free
+            int cmd2 = MemoryFlushModifiedList;
+            NtSetSystemInformation(SystemMemoryListInformation, ref cmd2, sizeof(int));
+
+            // Phase 3: 清空 Standby List → 釋放為 Free
+            int cmd3 = MemoryPurgeStandbyList;
+            int result = NtSetSystemInformation(SystemMemoryListInformation, ref cmd3, sizeof(int));
             return result == 0;
         } catch {
             return false;
@@ -130,15 +146,6 @@ try {
     Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Seconds 3
 
-    # 清空 Standby List：釋放 OS 快取佔用的物理頁框，整合連續記憶體供 Large Pages 使用
-    Write-Host "正在清空 Standby List 以整合連續記憶體 (Large Pages)..."
-    if ([MemoryCompactor]::PurgeStandbyList()) {
-        Write-Host "Standby List 已清空，可用實體記憶體已最大化"
-    } else {
-        Write-Warning "無法清空 Standby List (需要管理員權限)，Large Pages 分配可能失敗"
-    }
-    Start-Sleep -Seconds 2
-
     Safe-Remove $aeron_dir
 
     # --- 1.1 檔案預分配 (消除磁碟擴展延遲) ---
@@ -151,7 +158,8 @@ try {
 
     # --- 2. 執行 Maven 編譯與解壓 ---
     Write-Host "正在執行 Maven 構建與並行提取層級化 Jar..."
-    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am | Out-Null
+    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
+    if ($LASTEXITCODE -ne 0) { throw "Maven 編譯失敗 (exit code: $LASTEXITCODE)，中止腳本" }
 
     $m_t = "$base_path\service\spot-exchange\spot-matching\target"
     $m_dest = "$m_t\extracted"
@@ -163,7 +171,16 @@ try {
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 3. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 53251) ---
+    # --- 2.1 清空 Standby List (Maven/Jar 解壓後再清，避免建構過程重新佔用物理頁框) ---
+    Write-Host "正在清空 Standby List 以整合連續記憶體 (Large Pages)..."
+    if ([MemoryCompactor]::PurgeStandbyList()) {
+        Write-Host "Standby List 已清空，可用實體記憶體已最大化"
+    } else {
+        Write-Warning "無法清空 Standby List (需要管理員權限)，Large Pages 分配可能失敗"
+    }
+    Start-Sleep -Seconds 2
+
+    # --- 3. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 61443) ---
     Write-Host "Starting Standalone Media Driver..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
@@ -186,10 +203,10 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 53251
+    $driver.ProcessorAffinity = 61443
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 4. 啟動 Matching Engine (4GB, P-Core 2 | Mask: 4) ---
+    # --- 4. 啟動 Matching Engine (4GB, P-Core 2 + 共享 0,1,14,15 | Mask: 49159) ---
     Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
     $matching_args = @(
         "@$doc_path\jvm\matching-low-latency.args",
@@ -202,9 +219,19 @@ try {
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
     $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
-    $e.MinWorkingSet = $e.MaxWorkingSet
 
-    # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 | Mask: 248) ---
+    # --- 4.1 等待 Matching Engine 完成大頁分配，再清一次 Standby List ---
+    Write-Host "等待 Matching Engine 大頁分配穩定 (5s)..."
+    Start-Sleep -Seconds 5
+    Write-Host "二次清空 Standby List (為 Gateway 騰出連續物理頁框)..."
+    if ([MemoryCompactor]::PurgeStandbyList()) {
+        Write-Host "Standby List 已清空"
+    } else {
+        Write-Warning "無法清空 Standby List"
+    }
+    Start-Sleep -Seconds 2
+
+    # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 + 共享 0,1,14,15 | Mask: 49403) ---
     Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
     $gw_args = @(
         "@$doc_path\jvm\ws-api-throughput.args",
@@ -218,10 +245,18 @@ try {
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
     $g.ProcessorAffinity = 49403 # 核心 3-7 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
-    $g.MinWorkingSet = $g.MaxWorkingSet
 
     Write-Host "等待服務穩態 (20s)..."
     Start-Sleep -Seconds 20
+
+    # --- 5.1 三次清空 Standby List (為 Benchmark 騰出連續物理頁框) ---
+    Write-Host "三次清空 Standby List (為 Benchmark 騰出連續物理頁框)..."
+    if ([MemoryCompactor]::PurgeStandbyList()) {
+        Write-Host "Standby List 已清空"
+    } else {
+        Write-Warning "無法清空 Standby List"
+    }
+    Start-Sleep -Seconds 2
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."
