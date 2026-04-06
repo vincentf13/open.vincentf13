@@ -36,6 +36,13 @@ public class IdempotencyGuard implements DiskSink {
 
     private final ChronicleMap<CidKey, LongValue> diskMap = Storage.self().clientOrderIdMap();
 
+    // Bloom filter: 覆蓋所有已 flush 到 disk 的 clientOrderId。
+    // "definitely not in disk" → 跳過 mmap 讀取（省 1-2μs）
+    // "maybe in disk" → 仍查 disk（正確性保障）
+    private static final int BLOOM_BITS = 1 << 22; // 4M bits = 512KB
+    private static final int BLOOM_MASK = BLOOM_BITS - 1;
+    private final long[] bloom = new long[BLOOM_BITS >>> 6]; // 4M / 64 = 65536 longs
+
     // matching thread 專用 key/value（單執行緒，不競爭）
     private final CidKey matchingKey = new CidKey();
 
@@ -45,15 +52,29 @@ public class IdempotencyGuard implements DiskSink {
 
     private static long cidKey(long userId, long clientOrderId) { return userId ^ (clientOrderId * 0x9E3779B97F4A7C15L); }
 
-    /** 檢查是否為重複指令（matching thread 呼叫）：O(1) HashMap 查 active + draining，可選跳過磁碟 */
+    private void bloomAdd(long hash) {
+        bloom[(int) ((hash >>> 0) & BLOOM_MASK) >>> 6] |= 1L << (hash & 63);
+        bloom[(int) ((hash >>> 16) & BLOOM_MASK) >>> 6] |= 1L << ((hash >>> 16) & 63);
+        bloom[(int) ((hash >>> 32) & BLOOM_MASK) >>> 6] |= 1L << ((hash >>> 32) & 63);
+    }
+
+    private boolean bloomMayContain(long hash) {
+        return (bloom[(int) ((hash >>> 0) & BLOOM_MASK) >>> 6] & (1L << (hash & 63))) != 0
+            && (bloom[(int) ((hash >>> 16) & BLOOM_MASK) >>> 6] & (1L << ((hash >>> 16) & 63))) != 0
+            && (bloom[(int) ((hash >>> 32) & BLOOM_MASK) >>> 6] & (1L << ((hash >>> 32) & 63))) != 0;
+    }
+
+    /** 檢查是否為重複指令：O(1) HashMap + Bloom filter 前置，避免 mmap 讀取 */
     public boolean isDuplicate(long userId, long clientOrderId) {
         long key = cidKey(userId, clientOrderId);
-        // 1. O(1) 查 active
+        // 1. O(1) 查 active buffer
         if (active.index.get(key) != MISSING) return true;
-        // 2. O(1) 查 draining
+        // 2. O(1) 查 draining buffer
         Buffer d = draining;
         if (d != null && d.index.get(key) != MISSING) return true;
-        // 3. 查磁碟（只有重啟後的歷史訂單在 disk 上）
+        // 3. Bloom filter：若 "definitely not"，跳過 disk（省 1-2μs mmap）
+        if (!bloomMayContain(key)) return false;
+        // 4. Bloom filter 說 "maybe"，查 disk 確認
         matchingKey.set(userId, clientOrderId);
         return diskMap.containsKey(matchingKey);
     }
@@ -91,6 +112,8 @@ public class IdempotencyGuard implements DiskSink {
             flusherKey.set(d.uids[i], d.cids[i]);
             flusherValue.set(d.oids[i]);
             diskMap.put(flusherKey, flusherValue);
+            // 加入 Bloom filter，讓後續 isDuplicate 能跳過 disk check
+            bloomAdd(cidKey(d.uids[i], d.cids[i]));
         }
         d.count = 0;
         d.index.clear();

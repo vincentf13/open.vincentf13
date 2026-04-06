@@ -8,6 +8,7 @@ import open.vincentf13.service.spot.model.Order;
 import open.vincentf13.service.spot.model.Trade;
 import open.vincentf13.service.spot.model.command.AbstractSbeModel;
 import open.vincentf13.service.spot.sbe.*;
+import org.agrona.MutableDirectBuffer;
 import org.springframework.stereotype.Component;
 
 import java.nio.ByteOrder;
@@ -19,18 +20,17 @@ import static open.vincentf13.service.spot.infra.aeron.AeronUtil.SEND_OK;
 /**
  * 執行回報器 (Execution Reporter)
  *
- * 將撮合結果以 SBE 編碼透過 Aeron 發送至 Gateway，
- * 由 ReportReceiver 接收後推送至 WebSocket 客戶端。
- *
- * 回報格式與指令格式對稱：[20B header + SBE body]
- * Header: [0-3] MsgType | [4-11] reserved | [12-19] SBE message header
+ * 將撮合結果以 SBE 編碼透過 Aeron 發送至 Gateway。
+ * 使用 cur* field pattern（零分配）取代 per-call lambda。
+ * Match report 合併 taker + maker 為一次 Aeron tryClaim（batch send）。
  */
 @Slf4j
 @Component
 public class ExecutionReporter implements AutoCloseable {
 
-    private static final int HEADER_SIZE = 20; // 與 client frame 格式對稱
+    private static final int HEADER_SIZE = 20;
     private static final int SBE_HEADER_OFFSET = 12;
+    private static final int MATCH_REPORT_SIZE = HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;
 
     private Publication publication;
 
@@ -46,6 +46,22 @@ public class ExecutionReporter implements AutoCloseable {
     /** 最後一次 writeFrameHeader 的 nanoTime，Engine 用於計算 matching 延遲 */
     private long matchingEndNs;
 
+    // ===== cur* fields — 取代 per-call lambda 捕獲 =====
+    private int curMsgType, curTotalLen;
+    private long curUserId, curOrderId, curClientOrderId, curFilledQty;
+    // match batch 專用
+    private long curTakerUserId, curTakerOrderId, curTakerClientOrderId, curTakerCumQty;
+    private short curTakerStatus;
+    private long curMakerUserId, curMakerOrderId, curMakerClientOrderId, curMakerCumQty;
+    private short curMakerStatus;
+    private long curTradePrice, curTradeQty;
+
+    // ===== 預分配 Aeron handlers =====
+    private final AeronUtil.AeronHandler acceptedFiller = this::fillAccepted;
+    private final AeronUtil.AeronHandler rejectedFiller = this::fillRejected;
+    private final AeronUtil.AeronHandler canceledFiller = this::fillCanceled;
+    private final AeronUtil.AeronHandler matchBatchFiller = this::fillMatchBatch;
+
     public void init() {
         this.publication = AeronUtil.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.REPORT_STREAM_ID);
         log.info("ExecutionReporter 已初始化，Aeron report channel 就緒");
@@ -54,98 +70,108 @@ public class ExecutionReporter implements AutoCloseable {
     public void reportAccepted(Order taker) {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_ACCEPTED_COUNT, 1);
         acceptedCount++;
-        int len = HEADER_SIZE + OrderAcceptedEncoder.BLOCK_LENGTH;
-        sendWithRetry(len, (buf, off) -> {
-            writeFrameHeader(buf, off, MsgType.ORDER_ACCEPTED);
-            acceptedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(matchingEndNs)  // 共用 writeFrameHeader 的 nanoTime
-                .userId(taker.getUserId())
-                .orderId(taker.getOrderId())
-                .clientOrderId(taker.getClientOrderId());
-        });
+        curUserId = taker.getUserId();
+        curOrderId = taker.getOrderId();
+        curClientOrderId = taker.getClientOrderId();
+        trySend(HEADER_SIZE + OrderAcceptedEncoder.BLOCK_LENGTH, acceptedFiller);
     }
 
     public void reportRejected(long userId, long clientOrderId) {
         StaticMetricsHolder.addCounter(MetricsKey.ORDER_REJECTED_COUNT, 1);
         rejectedCount++;
-        int len = HEADER_SIZE + OrderRejectedEncoder.BLOCK_LENGTH;
-        sendWithRetry(len, (buf, off) -> {
-            writeFrameHeader(buf, off, MsgType.ORDER_REJECTED);
-            rejectedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(matchingEndNs)
-                .userId(userId)
-                .clientOrderId(clientOrderId);
-        });
+        curUserId = userId;
+        curClientOrderId = clientOrderId;
+        trySend(HEADER_SIZE + OrderRejectedEncoder.BLOCK_LENGTH, rejectedFiller);
     }
 
+    /** Batch match report：taker + maker 合併為一次 Aeron tryClaim */
     public void reportMatch(Order taker, Order maker, Trade trade) {
         matchedCount++;
-        sendMatchReport(taker, trade);
-        sendMatchReport(maker, trade);
-    }
-
-    private void sendMatchReport(Order order, Trade trade) {
-        int len = HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;
-        sendWithRetry(len, (buf, off) -> {
-            writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
-            matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(matchingEndNs)  // 共用 writeFrameHeader 的 nanoTime
-                .userId(order.getUserId())
-                .orderId(order.getOrderId())
-                .status(OrderStatus.get((short) order.getStatus()))
-                .lastPrice(trade.getPrice())
-                .lastQty(trade.getQty())
-                .cumQty(order.getFilled())
-                .avgPrice(trade.getPrice())
-                .clientOrderId(order.getClientOrderId());
-        });
+        curTakerUserId = taker.getUserId(); curTakerOrderId = taker.getOrderId();
+        curTakerClientOrderId = taker.getClientOrderId(); curTakerCumQty = taker.getFilled();
+        curTakerStatus = (short) taker.getStatus();
+        curMakerUserId = maker.getUserId(); curMakerOrderId = maker.getOrderId();
+        curMakerClientOrderId = maker.getClientOrderId(); curMakerCumQty = maker.getFilled();
+        curMakerStatus = (short) maker.getStatus();
+        curTradePrice = trade.getPrice(); curTradeQty = trade.getQty();
+        trySend(MATCH_REPORT_SIZE * 2, matchBatchFiller); // 一次 tryClaim 寫 2 個 report
     }
 
     public void reportCanceled(Order order) {
         canceledCount++;
-        int len = HEADER_SIZE + OrderCanceledEncoder.BLOCK_LENGTH;
-        sendWithRetry(len, (buf, off) -> {
-            writeFrameHeader(buf, off, MsgType.ORDER_CANCELED);
-            canceledEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(System.nanoTime())
-                .userId(order.getUserId())
-                .orderId(order.getOrderId())
-                .filledQty(order.getFilled())
-                .clientOrderId(order.getClientOrderId());
-        });
-    }
-
-    /**
-     * backpressure 重試 send：tryClaim 遇到 backpressure 時 spin 等待。
-     * 上限 ~2ms（10K spins）後放棄並記錄，避免撮合 thread 無限阻塞。
-     */
-    private void sendWithRetry(int len, AeronUtil.AeronHandler handler) {
-        int spins = 0;
-        while (true) {
-            int res = AeronUtil.send(publication, len, handler);
-            if (res == SEND_OK) return;
-            if (res != SEND_BACKPRESSURE) {
-                log.warn("Report send failed res={}, dropping one report", res);
-                return;
-            }
-            if (++spins > 10000) {
-                log.warn("Report send backpressure timeout after {} spins, dropping one report", spins);
-                return;
-            }
-            Thread.onSpinWait();
-        }
+        curUserId = order.getUserId();
+        curOrderId = order.getOrderId();
+        curFilledQty = order.getFilled();
+        curClientOrderId = order.getClientOrderId();
+        trySend(HEADER_SIZE + OrderCanceledEncoder.BLOCK_LENGTH, canceledFiller);
     }
 
     public void reportAuth(long userId) {}
     public void reportDeposit(long userId, int assetId, long amount) {}
 
+    // ===== Fill methods — 預分配，零分配 =====
+
+    private void fillAccepted(MutableDirectBuffer buf, int off) {
+        writeFrameHeader(buf, off, MsgType.ORDER_ACCEPTED);
+        acceptedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
+            .timestamp(matchingEndNs).userId(curUserId).orderId(curOrderId).clientOrderId(curClientOrderId);
+    }
+
+    private void fillRejected(MutableDirectBuffer buf, int off) {
+        writeFrameHeader(buf, off, MsgType.ORDER_REJECTED);
+        rejectedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
+            .timestamp(matchingEndNs).userId(curUserId).clientOrderId(curClientOrderId);
+    }
+
+    private void fillCanceled(MutableDirectBuffer buf, int off) {
+        writeFrameHeader(buf, off, MsgType.ORDER_CANCELED);
+        canceledEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
+            .timestamp(matchingEndNs).userId(curUserId).orderId(curOrderId)
+            .filledQty(curFilledQty).clientOrderId(curClientOrderId);
+    }
+
+    /** Batch: 一次 claim 寫入 taker + maker 兩個 match report */
+    private void fillMatchBatch(MutableDirectBuffer buf, int off) {
+        // Report 1: taker
+        writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
+        matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
+            .timestamp(matchingEndNs).userId(curTakerUserId).orderId(curTakerOrderId)
+            .status(OrderStatus.get(curTakerStatus))
+            .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curTakerCumQty)
+            .avgPrice(curTradePrice).clientOrderId(curTakerClientOrderId);
+        // Report 2: maker (offset by MATCH_REPORT_SIZE)
+        int off2 = off + MATCH_REPORT_SIZE;
+        writeFrameHeader(buf, off2, MsgType.ORDER_MATCHED);
+        matchedEncoder.wrapAndApplyHeader(buf, off2 + SBE_HEADER_OFFSET, headerEncoder)
+            .timestamp(matchingEndNs).userId(curMakerUserId).orderId(curMakerOrderId)
+            .status(OrderStatus.get(curMakerStatus))
+            .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curMakerCumQty)
+            .avgPrice(curTradePrice).clientOrderId(curMakerClientOrderId);
+    }
+
+    // ===== Aeron send =====
+
+    private boolean trySend(int len, AeronUtil.AeronHandler handler) {
+        int spins = 0;
+        while (true) {
+            int res = AeronUtil.send(publication, len, handler);
+            if (res == SEND_OK) return true;
+            if (res != SEND_BACKPRESSURE) {
+                log.warn("Report send failed res={}, dropping", res);
+                return false;
+            }
+            if (++spins > 10000) {
+                log.warn("Report send backpressure timeout after {} spins, dropping", spins);
+                return false;
+            }
+            Thread.onSpinWait();
+        }
+    }
+
     public long getMatchingEndNs() { return matchingEndNs; }
 
-    private void writeFrameHeader(org.agrona.MutableDirectBuffer buf, int off, int msgType) {
+    private void writeFrameHeader(MutableDirectBuffer buf, int off, int msgType) {
         buf.putInt(off, msgType, ByteOrder.LITTLE_ENDIAN);
-        // 取一次 nanoTime 同時用於：
-        // 1. 存入 report header → GW 用於計算 report_delivery
-        // 2. 記錄到 matchingEndNs → Engine 用於計算 matching (不含 Aeron IPC)
         matchingEndNs = System.nanoTime();
         buf.putLong(off + 4, matchingEndNs, ByteOrder.LITTLE_ENDIAN);
     }
