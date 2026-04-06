@@ -17,7 +17,7 @@
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:+AlwaysPreTouch
-# Large Pages 由 Matching Engine 獨佔，32GB 機器無法再為額外 JVM 分配大頁
+# Large Pages 由 Gateway 獨佔，32GB 機器無法再為額外 JVM 分配大頁
 # -XX:+UseLargePages
 -XX:ZAllocationSpikeTolerance=5.0
 -XX:MaxDirectMemorySize=1g
