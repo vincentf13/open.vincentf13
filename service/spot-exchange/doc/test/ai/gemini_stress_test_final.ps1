@@ -255,7 +255,7 @@ try {
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-        "60000", "1", "15"
+        "120000", "1", "15"
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
     $preWarm.ProcessorAffinity = 3840
     $preWarm.WaitForExit()
