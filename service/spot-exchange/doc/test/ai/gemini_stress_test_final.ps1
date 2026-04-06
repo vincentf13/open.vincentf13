@@ -8,7 +8,7 @@ $doc_path  = "$base_path\service\spot-exchange\doc"
 $log_path  = "$doc_path\test\log"
 
 # --- 0. 系統環境優化 C# 嵌入 ---
-$TimerCode = @"
+$NativeCode = @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -26,9 +26,69 @@ public class HighPrecisionTimer {
         NtSetTimerResolution(5000, false, out current);
     }
 }
+
+/// <summary>
+/// 清空 Windows Standby List，釋放快取佔用的物理記憶體頁框，
+/// 讓 OS 有最大機會提供連續大頁 (Large Pages) 給 JVM。
+/// 需要管理員權限；非管理員時 graceful 失敗不影響後續流程。
+/// </summary>
+public class MemoryCompactor {
+    [DllImport("ntdll.dll")]
+    private static extern int NtSetSystemInformation(int InfoClass, ref int Info, int Length);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, out long lpLuid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool AdjustTokenPrivileges(IntPtr TokenHandle, bool DisableAllPrivileges,
+        ref TOKEN_PRIVILEGES NewState, int BufferLength, IntPtr PreviousState, IntPtr ReturnLength);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetCurrentProcess();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TOKEN_PRIVILEGES {
+        public int PrivilegeCount;
+        public long Luid;
+        public int Attributes;
+    }
+
+    private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+    private const uint TOKEN_QUERY = 0x0008;
+    private const int SE_PRIVILEGE_ENABLED = 0x00000002;
+    private const int SystemMemoryListInformation = 80;
+    private const int MemoryPurgeStandbyList = 4;
+
+    public static bool PurgeStandbyList() {
+        try {
+            // 提權：啟用 SeProfileSingleProcessPrivilege
+            IntPtr token;
+            if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out token))
+                return false;
+
+            TOKEN_PRIVILEGES tp = new TOKEN_PRIVILEGES();
+            tp.PrivilegeCount = 1;
+            tp.Attributes = SE_PRIVILEGE_ENABLED;
+            if (!LookupPrivilegeValue(null, "SeProfileSingleProcessPrivilege", out tp.Luid))
+                return false;
+
+            AdjustTokenPrivileges(token, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+
+            // 清空 Standby List
+            int command = MemoryPurgeStandbyList;
+            int result = NtSetSystemInformation(SystemMemoryListInformation, ref command, sizeof(int));
+            return result == 0;
+        } catch {
+            return false;
+        }
+    }
+}
 "@
 if (-not ([PSObject].Assembly.GetType("HighPrecisionTimer"))) {
-    Add-Type -TypeDefinition $TimerCode
+    Add-Type -TypeDefinition $NativeCode
 }
 
 # 記錄目前的電源計畫並準備切換 (相容性抓取)
@@ -68,7 +128,17 @@ try {
     # --- 1. 強制清理舊環境 ---
     Write-Host "正在停止舊 Java 進程並清理共享記憶體..."
     Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+
+    # 清空 Standby List：釋放 OS 快取佔用的物理頁框，整合連續記憶體供 Large Pages 使用
+    Write-Host "正在清空 Standby List 以整合連續記憶體 (Large Pages)..."
+    if ([MemoryCompactor]::PurgeStandbyList()) {
+        Write-Host "Standby List 已清空，可用實體記憶體已最大化"
+    } else {
+        Write-Warning "無法清空 Standby List (需要管理員權限)，Large Pages 分配可能失敗"
+    }
     Start-Sleep -Seconds 2
+
     Safe-Remove $aeron_dir
 
     # --- 1.1 檔案預分配 (消除磁碟擴展延遲) ---
