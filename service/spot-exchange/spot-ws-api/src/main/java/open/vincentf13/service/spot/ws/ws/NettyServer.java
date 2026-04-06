@@ -36,7 +36,7 @@ public class NettyServer {
     @Value("${websocket.port:8080}")
     private int port;
 
-    @Value("${netty.worker.count:4}")
+    @Value("${netty.worker.count:2}")
     private int workerCount;
 
     private final WsCommandInboundHandler wsHandler;
@@ -53,8 +53,8 @@ public class NettyServer {
         if (!started.compareAndSet(false, true)) return;
 
         new Thread(() -> {
-            // bossGroup 處理連線接收，壓力小，不綁定核心（共用共享執行緒）
-            bossGroup = new NioEventLoopGroup(1);
+            // bossGroup 處理連線接收，壓力小，不綁定核心
+            bossGroup = new NioEventLoopGroup(1, r -> new Thread(r, "netty-boss"));
 
             // workerGroup 處理命令編解碼與業務邏輯，維持核心綁定
             workerGroup = new NioEventLoopGroup(workerCount, AffinityUtil.newThreadFactory("netty-worker",

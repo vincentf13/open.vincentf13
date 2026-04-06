@@ -43,9 +43,9 @@
 # 在有足夠 heap 時白白消耗 CPU 與 cache，與 busy-spin worker 競爭。
 -XX:-ZProactive
 
-# --- 記憶體配置 (維持 10GB Heap) ---
--Xms10G
--Xmx10G
+# --- 記憶體配置 (維持 4GB Heap) ---
+-Xms4G
+-Xmx4G
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
 # Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
@@ -76,4 +76,4 @@
 -Dfile.encoding=UTF-8
 -Djava.awt.headless=true
 -Djdk.nio.maxCachedBufferSize=2097152
--Dnetty.worker.count=3
+-Dnetty.worker.count=2

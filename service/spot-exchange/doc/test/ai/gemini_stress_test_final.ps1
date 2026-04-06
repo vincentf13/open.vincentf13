@@ -38,7 +38,7 @@ if ($schemeOutput -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0
 } else {
     $currentScheme = "381b4222-f694-41f0-9685-ff5bb260df2e" # 預設平衡模式
 }
-$ultimateScheme = "e9a42b02-d5df-448d-aa00-03f14749eb61" # 卓越效能 GUID
+$ultimateScheme = "fe8e30e8-5fe7-4e44-b2f9-e7b4495773eb" # 卓越效能 GUID (更新為實際生成的 GUID)
 
 # 網卡屬性記錄與切換
 $nicName = (Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object -First 1).Name
@@ -107,12 +107,12 @@ try {
     $driver.ProcessorAffinity = 53251
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 3. 啟動 Matching Engine (2GB, P-Core 2 | Mask: 49159) ---
-    Write-Host "Starting Matching Engine (2GB, P-Core 2)..."
+    # --- 3. 啟動 Matching Engine (4GB, P-Core 2 | Mask: 4) ---
+    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
     $matching_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Xms2G", "-Xmx2G", 
+        "-Xms4G", "-Xmx4G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -120,17 +120,17 @@ try {
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49159
+    $e.ProcessorAffinity = 4 # 僅核心 2
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $e.MinWorkingSet = $e.MaxWorkingSet
 
-    # --- 4. 啟動 Gateway (WS-API) (2GB, P-Cores 3-7 | Mask: 49279) ---
-    Write-Host "Starting Gateway (WS-API) (2GB, P-Cores 3-7)..."
+    # --- 4. 啟動 Gateway (WS-API) (10GB, P-Cores 3-7 | Mask: 248) ---
+    Write-Host "Starting Gateway (WS-API) (10GB, P-Cores 3-7)..."
     $g_dest = "$base_path\service\spot-exchange\spot-ws-api\target\extracted"
     $gw_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
-        "-Xms2G", "-Xmx2G",
+        "-Xms10G", "-Xmx10G",
         "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -138,15 +138,15 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 49279
+    $g.ProcessorAffinity = 248 # 核心 3, 4, 5, 6, 7
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $g.MinWorkingSet = $g.MaxWorkingSet
 
     Write-Host "等待服務穩態 (20s)..."
     Start-Sleep -Seconds 20
 
-    # --- 5. 啟動 Java Benchmark ---
-    Write-Host "Starting Java Benchmark with Interrupt Monitoring..."
+    # --- 5. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
+    Write-Host "Starting Java Benchmark (Cores 8-11)..."
     $bench_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
@@ -157,7 +157,7 @@ try {
         "30"       # 30秒預熱
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
-    $bench.ProcessorAffinity = 52227
+    $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，開始背景中斷監控..."
 

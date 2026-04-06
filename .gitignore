@@ -39,3 +39,4 @@ script/ai-tools/
 *.bkp
 *.dtmp
 *.dat
+service/spot-exchange/doc/test/log/

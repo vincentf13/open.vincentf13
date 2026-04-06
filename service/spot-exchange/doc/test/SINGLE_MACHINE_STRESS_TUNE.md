@@ -1,18 +1,24 @@
 # Swift Go 16 (SFG16-73) 極限壓測優化指南 (Arrow Lake Ultra 9 深度調優版)
 
 ## 0. 一鍵編譯與綁核啟動 (Master Startup Script)
-此腳本已優化啟動順序：**嚴格執行「啟動 -> 立即綁核 -> 等待穩態 -> 下一個」**，確保物理核心分配不衝突。
+此腳本為系統最終極優化版本，已實作：
+1. **OS 層級配置**：鎖定 0.5ms 高精度時鐘、強制「卓越效能」電源計畫、關閉網卡封包合併與省電模式。
+2. **記憶體配置**：預分配 Aeron 磁碟空間，啟用 Large Pages (大頁記憶體)，Heap 容量收斂至 4GB。
+3. **精確綁核與中斷監控**：徹底隔離業務核心 (Core 2-7) 與 OS/Netty Boss/Benchmark 核心，並於壓測期間自動收集核心中斷佔比與內部飽和度指標。
+
+請將以下內容存為 `.ps1` 執行：
+
 ```powershell
 # ==============================================================================
 # Aeron 交易系統自動化部署與啟動腳本 (高效能隔離版 + OS 深度優化)
 # ==============================================================================
 
-# --- 0. 基礎路徑配置 ---
 $base_path = "C:\iProject\open.vincentf13"
 $aeron_dir = "$base_path\data\spot-exchange"
 $doc_path  = "$base_path\service\spot-exchange\doc"
+$log_path  = "$doc_path\test\log"
 
-# --- 0.1 系統環境優化 C# 嵌入 ---
+# --- 0. 系統環境優化 C# 嵌入 ---
 $TimerCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -36,9 +42,19 @@ if (-not ([PSObject].Assembly.GetType("HighPrecisionTimer"))) {
     Add-Type -TypeDefinition $TimerCode
 }
 
-# 記錄目前的電源計畫並準備切換
-$currentScheme = (powercfg /getactivescheme).Split(' ')[3]
-$ultimateScheme = "e9a42b02-d5df-448d-aa00-03f14749eb61" # 卓越效能
+# 記錄目前的電源計畫並準備切換 (相容性抓取)
+$schemeOutput = powercfg /getactivescheme
+if ($schemeOutput -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+    $currentScheme = $matches[1]
+} else {
+    $currentScheme = "381b4222-f694-41f0-9685-ff5bb260df2e" # 預設平衡模式
+}
+$ultimateScheme = "fe8e30e8-5fe7-4e44-b2f9-e7b4495773eb" # 卓越效能
+
+# 網卡屬性記錄與切換
+$nicName = (Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object -First 1).Name
+$originalCoalescing = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -ErrorAction SilentlyContinue).DisplayValue
+$originalMimo = (Get-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -ErrorAction SilentlyContinue).DisplayValue
 
 # 安全清理函數
 function Safe-Remove($path) {
@@ -49,9 +65,15 @@ function Safe-Remove($path) {
 }
 
 try {
-    Write-Host ">>> [OS] 開啟高精度時鐘 (0.5ms) 並切換至卓越效能模式..."
+    Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、切換至卓越效能..."
     [HighPrecisionTimer]::SetMaxResolution()
     powercfg /setactive $ultimateScheme
+    
+    # 關閉網卡干擾屬性
+    if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue }
+    if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue "No SMPS" -ErrorAction SilentlyContinue }
+
+    if (!(Test-Path $log_path)) { New-Item -ItemType Directory -Force $log_path }
 
     # --- 1. 強制清理舊環境 ---
     Write-Host "正在停止舊 Java 進程並清理共享記憶體..."
@@ -64,43 +86,37 @@ try {
     Write-Host "正在執行磁碟空間預分配 (WAL & State: 1GB)..."
     fsutil file createnew "$aeron_dir\wal-spot-exchange.dat" 1073741824 | Out-Null
     fsutil file createnew "$aeron_dir\matching-engine-state.dat" 1073741824 | Out-Null
+    New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
 
-    # --- 2. 執行並行 Maven 編譯 ---
-    Write-Host "正在執行並行 Maven 編譯 (Threads=3C, Skip Tests)..."
-    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
-    if ($LASTEXITCODE -ne 0) { throw "Maven 構建失敗。" }
-
-    # --- 3. 準備運行環境 (並行 Layertools 解壓) ---
-    Write-Host "正在並行提取層級化 Jar 內容 (layertools)..."
+    # --- 2. 執行 Maven 編譯與解壓 ---
+    Write-Host "正在執行 Maven 構建與並行提取層級化 Jar..."
+    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am | Out-Null
+    
     $m_t = "$base_path\service\spot-exchange\spot-matching\target"
     $m_dest = "$m_t\extracted"
     $g_t = "$base_path\service\spot-exchange\spot-ws-api\target"
     $g_dest = "$g_t\extracted"
-
-    Safe-Remove $m_dest
-    Safe-Remove $g_dest
 
     $job1 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-matching.jar" extract --destination "$d/" } -ArgumentList $m_t, $m_dest
     $job2 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-ws-api.jar" extract --destination "$d/" } -ArgumentList $g_t, $g_dest
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 4. 啟動 獨立式 Media Driver (Mask: 61955) ---
-    Write-Host "Starting Standalone Media Driver on Dedicated CPUs 9, 12, 13..."
+    # --- 3. 啟動 獨立式 Media Driver ---
+    Write-Host "Starting Standalone Media Driver..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
-    $aeron_jar = $aeron_jar_item.FullName
-
+    
     $driver_args = @(
         "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
         "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
         "-Xms512m", "-Xmx512m",
         "-XX:+UseLargePages",
-        "-cp", "$aeron_jar",
+        "-cp", "$($aeron_jar_item.FullName)",
         "-Daeron.threading.mode=DEDICATED",
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=9",
+        "-Daeron.conductor.affinity=0",
         "-Daeron.sender.affinity=12",
         "-Daeron.receiver.affinity=13",
         "-Daeron.term.buffer.length=64m",
@@ -109,71 +125,101 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 61955
+    $driver.ProcessorAffinity = 53251 # Mask for 0, 1, 12, 13, 14, 15
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
-    Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
-
+    # --- 4. 啟動 Matching Engine (4GB, P-Core 2) ---
+    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
     $matching_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
+        "-Xms4G", "-Xmx4G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
+    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
+    $e.ProcessorAffinity = 4 # Core 2
+    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
+    $e.MinWorkingSet = $e.MaxWorkingSet
 
+    # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7) ---
+    Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
     $gw_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
-        "-Dspot.affinity.cores=3,4,5,6,7,8",
+        "-Xms4G", "-Xmx4G",
+        "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
-
-    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49159
-    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
-    $e.MinWorkingSet = $e.MaxWorkingSet
-
-    $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 49659
+    $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
+    $g.ProcessorAffinity = 248 # Cores 3, 4, 5, 6, 7
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $g.MinWorkingSet = $g.MaxWorkingSet
 
-    Write-Host "服務已發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id)) 已設為 RealTime 優先級。"
+    Write-Host "等待服務穩態 (20s)..."
+    Start-Sleep -Seconds 20
 
-    # --- 7. 啟動 Java Benchmark (Mask: 52227) ---
-    $log_dir = "$doc_path\test\log"
-    if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
-
-    Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
-
+    # --- 6. 啟動 Java Benchmark (Cores 8-11) ---
+    Write-Host "Starting Java Benchmark (Cores 8-11)..."
     $bench_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-        "60000", "60", "60"
+        "60000", "30", "30"
     )
-    $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow    
-    Start-Sleep -Milliseconds 500
-    $bench.ProcessorAffinity = 52227
+    $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
+    $bench.ProcessorAffinity = 3840 # Cores 8, 9, 10, 11
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
-    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，等待完成..."
+    Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，開始背景中斷監控..."
+
+    # 背景監控核心 2-7 的中斷佔比
+    $interruptLog = "$log_path\interrupt_stats.log"
+    "Time, Core, InterruptTime(%)" | Out-File $interruptLog
+    $monitorTask = Start-Job -ScriptBlock {
+        param($logFile)
+        while($true) {
+            $samples = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-7]$" }
+            $timestamp = Get-Date -Format "HH:mm:ss"
+            foreach($s in $samples) {
+                "$timestamp, Core $($s.InstanceName), $($s.CookedValue.ToString('F2'))" | Out-File $logFile -Append
+            }
+            Start-Sleep -Seconds 5
+        }
+    } -ArgumentList $interruptLog
+
     $bench.WaitForExit()
+    Stop-Job $monitorTask
+    Remove-Job $monitorTask
+
+    # --- 7. 抓取內部指標數據 ---
+    Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
+    try {
+        $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
+        $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
+        $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
+        $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
+    } catch {
+        Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
+    }
 
 } finally {
-    Write-Host ">>> [OS] 還原系統環境並清理進程..."
-    [HighPrecisionTimer]::ResetResolution()
-    powercfg /setactive $currentScheme
+    Write-Host ">>> [OS] 還原系統環境與網卡設定並清理進程..."
+    if ([PSObject].Assembly.GetType("HighPrecisionTimer")) { [HighPrecisionTimer]::ResetResolution() }
+    if ($currentScheme) { powercfg /setactive $currentScheme }
+    if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue $originalCoalescing -ErrorAction SilentlyContinue }
+    if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue $originalMimo -ErrorAction SilentlyContinue }
     
-    # 確保關閉所有啟動的服務 (如果還活著)
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
     if ($e -and !$e.HasExited) { Stop-Process -Id $e.Id -Force }
     if ($g -and !$g.HasExited) { Stop-Process -Id $g.Id -Force }
-    
-    Write-Host "壓測腳本執行完畢。"
+
+    Write-Host "分析結果已輸出至 $log_path\benchmark_result.log"
 }
 ```
