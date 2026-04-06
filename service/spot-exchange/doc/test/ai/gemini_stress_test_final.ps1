@@ -275,18 +275,9 @@ try {
         catch { } # 靜默失敗
     }
 
-    # --- [Diagnose] 背景診斷工具 (僅 -Diagnose 模式啟用，避免影響延遲) ---
+    # --- [Diagnose] 背景中斷監控 (僅 -Diagnose 模式，避免影響延遲) ---
     if ($Diagnose) {
-        Write-Host ">>> [Diagnose] 啟用 AI 診斷工具 (heap histogram, 中斷監控, 內部指標)..."
-
-        $heapJob = Start-Job -ScriptBlock {
-            param($targetPid, $logDir)
-            Start-Sleep -Seconds 55  # 預熱接近結束時 (60s warmup)
-            jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_warmup.log"
-            Start-Sleep -Seconds 20  # 測量中段
-            jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_measure.log"
-        } -ArgumentList $g.Id, $log_path
-
+        Write-Host ">>> [Diagnose] 啟用中斷監控..."
         $interruptLog = "$log_path\interrupt_stats.log"
         "Time, Core, InterruptTime(%)" | Out-File $interruptLog
         $monitorTask = Start-Job -ScriptBlock {
@@ -307,17 +298,26 @@ try {
     # --- 清理背景 Jobs ---
     if ($resetJob) { Wait-Job $resetJob -Timeout 5; Remove-Job $resetJob -ErrorAction SilentlyContinue }
     if ($monitorTask) { Stop-Job $monitorTask; Remove-Job $monitorTask }
-    if ($heapJob) { Wait-Job $heapJob -Timeout 10; Stop-Job $heapJob -ErrorAction SilentlyContinue; Remove-Job $heapJob -ErrorAction SilentlyContinue }
 
-    # --- 7. 抓取內部指標數據 (僅 -Diagnose 模式) ---
+    # --- 7. 抓取診斷數據 (僅 -Diagnose 模式，Gateway 還活著) ---
     if ($Diagnose) {
-        Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
+        Write-Host "正在抓取 heap histogram 和內部指標..."
+
+        # Heap histogram — 直接在主線程跑 jcmd，Gateway 此刻仍存活
+        try {
+            jcmd $g.Id GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
+            Write-Host "Heap histogram 已存至 heap_gw_measure.log"
+        } catch {
+            Write-Warning "jcmd 失敗: $($_.Exception.Message)"
+        }
+
+        # 內部指標
         try {
             $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
             $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
             $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
             $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
-            Write-Host "內部指標抓取成功，已存至 $log_path"
+            Write-Host "內部指標抓取成功"
         } catch {
             Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
         }

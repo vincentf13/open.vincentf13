@@ -109,6 +109,7 @@ public class ReportReceiver extends Worker {
 
         if (singleChannel) {
             // 複製 buf 參考到局部陣列，避免 lambda 捕獲 this 的可變欄位
+            // 注意：不能用預分配 field array，因為 EventLoop 線程和 report-receiver 線程有 race
             ByteBuf[] bufs = new ByteBuf[count];
             System.arraycopy(batchBufs, 0, bufs, 0, count);
             clearRefs(count);

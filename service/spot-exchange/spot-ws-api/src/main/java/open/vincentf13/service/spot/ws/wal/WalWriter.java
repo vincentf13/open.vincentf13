@@ -32,6 +32,7 @@ public class WalWriter extends Worker {
     private final ChronicleQueue wal;
     private ExcerptAppender appender;
     private long localWriteCount;
+    private int pollCount; // doWork 計數器，避免 per-call int[] 分配
 
     public WalWriter(RingBuffer<WalEvent> ringBuffer) {
         super("wal-writer",
@@ -54,22 +55,25 @@ public class WalWriter extends Worker {
         log.info("[WAL-WRITER] 初始化完成，BinaryWire 格式寫入");
     }
 
+    // 預分配 poller handler，避免 per-call lambda 分配 (busy-spin 每秒調用數百萬次)
+    private final EventPoller.Handler<WalEvent> pollHandler = (event, sequence, endOfBatch) -> {
+        writeToWal(event);
+        pollCount++;
+        return true;
+    };
+
     @Override
     protected int doWork() {
-        int[] count = {0};
+        pollCount = 0;
         try {
-            poller.poll((event, sequence, endOfBatch) -> {
-                writeToWal(event);
-                count[0]++;
-                return true;
-            });
+            poller.poll(pollHandler);
         } catch (Exception e) {
             log.error("[WAL-WRITER] 寫入失敗", e);
         }
-        if (count[0] > 0) {
-            localWriteCount += count[0];
+        if (pollCount > 0) {
+            localWriteCount += pollCount;
         }
-        return count[0];
+        return pollCount;
     }
 
     /**
@@ -123,10 +127,7 @@ public class WalWriter extends Worker {
     protected void onStop() {
         if (poller != null) {
             try {
-                poller.poll((event, sequence, endOfBatch) -> {
-                    writeToWal(event);
-                    return true;
-                });
+                poller.poll(pollHandler);
             } catch (Exception e) { log.warn("[WAL-WRITER] 關閉時排空失敗", e); }
         }
         log.info("[WAL-WRITER] 已停止");
