@@ -35,7 +35,7 @@
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
 -XX:ParallelGCThreads=4
-# ConcGCThreads=2：利用共享核心池 (0,1,14,15) 加速並行標記。
+# GC 線程跑在共享核心 (0,1,14,15)，不搶業務核心，可安全使用多線程加速 GC cycle
 -XX:ConcGCThreads=2
 -XX:ZAllocationSpikeTolerance=5.0
 # 關閉 ZGC 主動 GC：8GB heap + 低分配率下不需要 proactive cycle

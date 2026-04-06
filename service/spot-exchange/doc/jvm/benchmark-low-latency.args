@@ -17,8 +17,9 @@
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:+AlwaysPreTouch
--XX:+UseLargePages
--XX:LargePageSizeInBytes=2m
+# Large Pages 由 Matching Engine 獨佔，benchmark 不啟用以避免大頁池耗盡
+# -XX:+UseLargePages
+# -XX:LargePageSizeInBytes=2m
 -XX:ZAllocationSpikeTolerance=5.0
 -XX:MaxDirectMemorySize=1g
 

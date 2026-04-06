@@ -48,21 +48,21 @@ public class Storage {
         this.closed = false;
         log.info(">>> [STORAGE] 正在啟動 Chronicle 資源加載...");
         try {
-            this.orders = createMap(ChronicleMapEnum.ORDERS, LongValue.class, Order.class, 10_000_000, 128);
-            this.trades = createMap(ChronicleMapEnum.TRADES, LongValue.class, Trade.class, 10_000_000, 64);
-            this.balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 10_000_000, 16, 64);
-            this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 1_000_000, 8);
-            this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 10_000_000, 1);
-            this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 10_000_000, 16, 8);
+            this.orders = createMap(ChronicleMapEnum.ORDERS, LongValue.class, Order.class, 5_000_000, 128);
+            this.trades = createMap(ChronicleMapEnum.TRADES, LongValue.class, Trade.class, 5_000_000, 64);
+            this.balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 5_000_000, 16, 64);
+            this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 500_000, 8);
+            this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 5_000_000, 1);
+            this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 5_000_000, 16, 8);
             this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 32);
             this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 32);
             
             // 重要：這些 Map 如果在 Windows 上被多個 Java 進程同時訪問且沒有設置正確的 entries 空間，會拋出 Exception
             this.latestMetrics = createMap("metrics-latest", Long.class, Long.class, 4096, 8, 8);
-            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400 * 7, 8, 8);
-            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 86400 * 7, 8, 8);
-            this.dutyCycleHistory = createMap("metrics-duty-cycle-history", Long.class, Long.class, 86400 * 7, 8, 8);
-            this.counterHistory = createMap("metrics-counter-history", Long.class, Long.class, 86400 * 7, 8, 8);
+            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 3600, 8, 8);
+            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 3600, 8, 8);
+            this.dutyCycleHistory = createMap("metrics-duty-cycle-history", Long.class, Long.class, 3600, 8, 8);
+            this.counterHistory = createMap("metrics-counter-history", Long.class, Long.class, 3600, 8, 8);
             this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 2048, 8, 256);
             
             this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);

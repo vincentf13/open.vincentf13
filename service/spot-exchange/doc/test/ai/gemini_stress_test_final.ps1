@@ -102,7 +102,6 @@ try {
         "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
         "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
         "-Xms512m", "-Xmx512m",
-        "-XX:+UseLargePages",
         "-cp", "$aeron_jar",
         "-Daeron.threading.mode=DEDICATED",
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
@@ -131,7 +130,7 @@ try {
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 4 # 僅核心 2
+    $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $e.MinWorkingSet = $e.MaxWorkingSet
 
@@ -146,7 +145,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 248 # 核心 3, 4, 5, 6, 7
+    $g.ProcessorAffinity = 49403 # 核心 3-7 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $g.MinWorkingSet = $g.MaxWorkingSet
 

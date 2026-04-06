@@ -54,7 +54,7 @@ public class NettyServer {
 
         new Thread(() -> {
             // bossGroup 處理連線接收，壓力小，不綁定核心
-            bossGroup = new NioEventLoopGroup(1, r -> new Thread(r, "netty-boss"));
+            bossGroup = new NioEventLoopGroup(1, (java.util.concurrent.ThreadFactory) r -> new Thread(r, "netty-boss"));
 
             // workerGroup 處理命令編解碼與業務邏輯，維持核心綁定
             workerGroup = new NioEventLoopGroup(workerCount, AffinityUtil.newThreadFactory("netty-worker",

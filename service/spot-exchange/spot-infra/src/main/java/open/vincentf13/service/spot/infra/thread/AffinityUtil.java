@@ -67,9 +67,15 @@ public class AffinityUtil {
             }
 
             if (targetCore >= 0) {
-                BitSet next = new BitSet();
-                next.set(targetCore);
-                Affinity.setAffinity(next);
+                if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+                    // 直接呼叫 Windows API，繞過 OpenHFT WindowsJNAAffinity 的誤報檢查
+                    long mask = 1L << targetCore;
+                    Kernel32.INSTANCE.SetThreadAffinityMask(Kernel32.INSTANCE.GetCurrentThread(), mask);
+                } else {
+                    BitSet next = new BitSet();
+                    next.set(targetCore);
+                    Affinity.setAffinity(next);
+                }
                 isBound.set(true);
                 log.info("[AFFINITY] {} 鎖定專屬核心: {}", Thread.currentThread().getName(), targetCore);
                 return targetCore;
@@ -113,6 +119,8 @@ public class AffinityUtil {
     private interface Kernel32 extends Library {
         Kernel32 INSTANCE = Native.load("kernel32", Kernel32.class);
         int GetCurrentProcessorNumber();
+        com.sun.jna.Pointer GetCurrentThread();
+        long SetThreadAffinityMask(com.sun.jna.Pointer hThread, long dwThreadAffinityMask);
     }
 
     private AffinityUtil() {}

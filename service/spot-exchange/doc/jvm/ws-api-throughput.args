@@ -34,7 +34,7 @@
 -XX:+UseZGC
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
-# Gateway 8 核心，GC 執行緒數降低避免搶佔 busy-spin worker
+# GC 線程跑在共享核心 (0,1,14,15)，不搶業務核心，可安全使用多線程加速 GC cycle
 -XX:ParallelGCThreads=4
 -XX:ConcGCThreads=2
 # 提高突發分配耐受度
@@ -50,8 +50,8 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
-# Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
--XX:+UseLargePages
+# Large Pages 由 Matching Engine 獨佔，Gateway 不啟用以避免大頁池耗盡
+# -XX:+UseLargePages
 
 # --- 物理層與吞吐量優化 ---
 -XX:+UseNUMA
