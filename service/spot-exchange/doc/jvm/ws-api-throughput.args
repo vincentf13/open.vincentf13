@@ -51,10 +51,10 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
-# Huge Pages (2MB TLB)：Gateway 的 Netty buffer pool + 多連線並行 heap 存取較散佈，
-# 2MB 大頁減少 TLB miss。Matching Engine 不啟用大頁以避免佔用大頁池。
-# 注意：Large Pages 只影響 heap，不影響 Chronicle WAL (file-backed mmap 一律 4KB)。
--XX:+UseLargePages
+# Large Pages：32GB 機器上 Matching 4G + Gateway 4G + Chronicle mlock 2.5GB 後
+# 大頁分配不穩定 (84% 成功率)。Gateway 啟動失敗會導致整個壓測中斷。
+# 穩定配置：兩個 JVM 都不用大頁。之前最佳結果 (p99=6.60ms) 就是此配置。
+# -XX:+UseLargePages
 
 # --- 執行緒與排程優化 ---
 -XX:+UseThreadPriorities
