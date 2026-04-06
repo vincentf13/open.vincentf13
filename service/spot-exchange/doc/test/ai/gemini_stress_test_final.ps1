@@ -246,11 +246,22 @@ try {
     $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    Write-Host "等待服務穩態 (30s) + 觸發 ZGC Warmup..."
-    Start-Sleep -Seconds 10
-    # 提前觸發 ZGC Warmup：讓 ZGC 在穩態期間完成校準，測量期間不再有 GC
-    try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/gc" -Method POST -ErrorAction Stop | Out-Null; Write-Host "System.gc() 已觸發" } catch {}
+    Write-Host "等待服務啟動 (20s)..."
     Start-Sleep -Seconds 20
+
+    # --- 預熱 ZGC：短暫高壓跑 15 秒，強制 ZGC Warmup 在正式壓測前完成 ---
+    Write-Host "Pre-warming ZGC (15s burst at 60K/sec)..."
+    $preWarm = Start-Process java -ArgumentList @(
+        "@$doc_path\jvm\benchmark-low-latency.args",
+        "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+        "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
+        "60000", "1", "15"
+    ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
+    $preWarm.ProcessorAffinity = 3840
+    $preWarm.WaitForExit()
+    Write-Host "Pre-warm 完成，等待 GC 穩定 (5s)..."
+    try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/gc" -Method POST -ErrorAction Stop | Out-Null } catch {}
+    Start-Sleep -Seconds 5
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."
@@ -260,7 +271,7 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000",   # 6萬 orders/sec
         "30",      # 30秒測量
-        "90"       # 90秒預熱 (確保 ZGC Warmup cycles 在測量前完成，觀察到 Warmup 在 ~77s 觸發)
+        "60"       # 60秒預熱 (ZGC Warmup 已在 pre-warm 階段完成)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
@@ -269,7 +280,7 @@ try {
 
     # --- Warmup 結束前重置內部指標 (排除 warmup 數據污染) ---
     $resetJob = Start-Job -ScriptBlock {
-        Start-Sleep -Seconds 88  # warmup 90s，提前 2s 重置
+        Start-Sleep -Seconds 58  # warmup 60s，提前 2s 重置
         try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/reset" -Method POST -ErrorAction Stop | Out-Null }
         catch { } # 靜默失敗
     }
