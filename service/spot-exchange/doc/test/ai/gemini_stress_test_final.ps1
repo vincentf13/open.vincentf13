@@ -210,23 +210,7 @@ try {
     $driver.ProcessorAffinity = 61443
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 4. 啟動 Matching Engine (4GB, P-Core 2 + 共享 0,1,14,15 | Mask: 49159) ---
-    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
-    $matching_args = @(
-        "@$doc_path\jvm\matching-low-latency.args",
-        "-Dspot.affinity.cores=2",
-        "-Daeron.driver.enabled=false",
-        "-Daeron.dir=$aeron_dir",
-        "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
-        "open.vincentf13.service.spot.matching.MatchingApp"
-    )
-    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
-    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
-
-    # --- 4.1 等待 Matching + Chronicle mlock 完成，清空 Standby List 為 Gateway 大頁騰空間 ---
-    Write-Host "等待 Matching Engine + Chronicle mlock 完成 (5s)..."
-    Start-Sleep -Seconds 5
+    # --- 4. 清空 Standby List，然後啟動 Gateway (LP) —— Gateway 先啟動拿乾淨大頁 ---
     Write-Host "清空 Standby List (為 Gateway Large Pages 整合連續 2MB 頁框)..."
     if ([MemoryCompactor]::PurgeStandbyList()) {
         Write-Host "Standby List 已清空"
@@ -235,8 +219,7 @@ try {
     }
     Start-Sleep -Seconds 2
 
-    # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 + 共享 0,1,14,15 | Mask: 49403) ---
-    Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
+    Write-Host "Starting Gateway (WS-API) (4GB LP, P-Cores 3-7)..."
     # -Diagnose 模式：生成臨時 args 檔去掉 PerfDisableSharedMem，讓 jcmd 能連接
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     if ($Diagnose) {
@@ -255,6 +238,20 @@ try {
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
     $g.ProcessorAffinity = 49403 # 核心 3-7 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
+
+    # --- 5. 啟動 Matching Engine (4GB 無 LP, P-Core 2) —— 後啟動不影響 Gateway 大頁 ---
+    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
+    $matching_args = @(
+        "@$doc_path\jvm\matching-low-latency.args",
+        "-Dspot.affinity.cores=2",
+        "-Daeron.driver.enabled=false",
+        "-Daeron.dir=$aeron_dir",
+        "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
+        "open.vincentf13.service.spot.matching.MatchingApp"
+    )
+    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
+    $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
+    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務穩態 (30s)..."
     Start-Sleep -Seconds 30
