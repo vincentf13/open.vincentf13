@@ -51,10 +51,9 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=4G
 -XX:+AlwaysPreTouch
-# Large Pages：32GB 機器上 Matching 4G + Gateway 4G + Chronicle mlock 2.5GB 後
-# 大頁分配不穩定 (84% 成功率)。Gateway 啟動失敗會導致整個壓測中斷。
-# 穩定配置：兩個 JVM 都不用大頁。之前最佳結果 (p99=6.60ms) 就是此配置。
-# -XX:+UseLargePages
+# Huge Pages (2MB TLB)：32GB 機器上大頁���配偶爾失敗 (需 Standby List 清理配合)。
+# 若 Gateway 啟動時報 "Forced to lower max Java heap size"，重跑一次通常能解決。
+-XX:+UseLargePages
 
 # --- 執行緒與排程優化 ---
 -XX:+UseThreadPriorities
