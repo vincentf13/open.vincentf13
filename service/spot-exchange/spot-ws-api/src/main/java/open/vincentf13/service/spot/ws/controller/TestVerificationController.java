@@ -283,6 +283,7 @@ public class TestVerificationController {
             map.put("time", TIME.format(Instant.ofEpochSecond(entry.getKey())));
             addLatencyPercentiles(map, "transport", entry.getValue().get("transport"));
             addLatencyPercentiles(map, "matching", entry.getValue().get("matching"));
+            addLatencyPercentiles(map, "report_delivery", entry.getValue().get("report_delivery"));
             result.add(map);
         }
         return result;
