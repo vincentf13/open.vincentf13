@@ -273,6 +273,7 @@ public class TestVerificationController {
                 case (int) MetricsKey.LATENCY_DISRUPTOR_WAIT -> "disruptor_wait";
                 case (int) MetricsKey.LATENCY_SENDER_ENCODE -> "sender_encode";
                 case (int) MetricsKey.LATENCY_CONTROL_POLL -> "control_poll";
+                case (int) MetricsKey.LATENCY_GATEWAY_TOTAL -> "gateway_total";
                 default -> null;
             };
             if (label != null) {
@@ -293,6 +294,7 @@ public class TestVerificationController {
             addLatencyPercentiles(map, "disruptor_wait", entry.getValue().get("disruptor_wait"));
             addLatencyPercentiles(map, "sender_encode", entry.getValue().get("sender_encode"));
             addLatencyPercentiles(map, "control_poll", entry.getValue().get("control_poll"));
+            addLatencyPercentiles(map, "gateway_total", entry.getValue().get("gateway_total"));
             result.add(map);
         }
         return result;

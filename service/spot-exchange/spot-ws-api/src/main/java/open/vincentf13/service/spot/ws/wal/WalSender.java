@@ -335,10 +335,14 @@ public class WalSender extends Worker {
         }
     }
 
+    /** Diagnose 模式：Aeron commit 後記錄 sendDoneNs，寫入 message header pad 欄位供 Matching 算 last mile */
+    private long sendDoneNs;
+
     private boolean trySend(int totalLen) {
         while (running.get()) {
             int res = AeronUtil.send(publication, totalLen, aeronFiller);
             if (res == SEND_OK) {
+                if (DIAGNOSE) sendDoneNs = System.nanoTime();
                 if (curWalIndex == 1) log.info("[WAL-SENDER] 成功發送第一條消息 (seq=1)");
                 return true;
             }
@@ -375,12 +379,11 @@ public class WalSender extends Worker {
     // ===== Transport 子段延遲 (僅 -Dspot.diagnose=true) =====
 
     private void recordTransportSubLatencies(WalEvent e, long pollTimeNs, long doneNs) {
-        // netty_process: gwTimeNs → publishTimeNs (Netty 解碼 + Disruptor publish)
         StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_NETTY_PROCESS, e.publishTimeNs - e.arrivalTimeNs);
-        // disruptor_wait: publishTimeNs → pollTimeNs (事件在 RingBuffer 等待)
         StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_DISRUPTOR_WAIT, pollTimeNs - e.publishTimeNs);
-        // sender_encode: pollTimeNs → doneNs (WAL write + SBE encode + Aeron send)
         StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_SENDER_ENCODE, doneNs - pollTimeNs);
+        // gateway_total: gwTimeNs → Aeron commit 完成。transport - gateway_total ≈ Aeron IPC last mile
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_GATEWAY_TOTAL, sendDoneNs - e.arrivalTimeNs);
     }
 
     // ===== Metrics =====
