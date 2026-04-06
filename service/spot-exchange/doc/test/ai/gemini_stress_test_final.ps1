@@ -289,20 +289,27 @@ try {
 
     # --- [Diagnose] 背景中斷監控 (僅 -Diagnose 模式，避免影響延遲) ---
     if ($Diagnose) {
-        Write-Host ">>> [Diagnose] 啟用中斷監控..."
-        $interruptLog = "$log_path\interrupt_stats.log"
-        "Time, Core, InterruptTime(%)" | Out-File $interruptLog
+        Write-Host ">>> [Diagnose] 啟用 OS 監控 (Interrupt, DPC, Privileged, Context Switches)..."
+        $osStatsLog = "$log_path\os_stats.log"
+        "Time, Core, Interrupt(%), DPC(%), Privileged(%)" | Out-File $osStatsLog
         $monitorTask = Start-Job -ScriptBlock {
             param($logFile)
             while($true) {
-                $samples = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-7]$" }
                 $timestamp = Get-Date -Format "HH:mm:ss"
-                foreach($s in $samples) {
-                    "$timestamp, Core $($s.InstanceName), $($s.CookedValue.ToString('F2'))" | Out-File $logFile -Append
+                $int = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
+                $dpc = (Get-Counter "\Processor(*)\% DPC Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
+                $priv = (Get-Counter "\Processor(*)\% Privileged Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
+                $cs = (Get-Counter "\System\Context Switches/sec").CounterSamples[0].CookedValue
+                foreach($core in @("2","3","4","5","6")) {
+                    $i = ($int | Where-Object { $_.InstanceName -eq $core }).CookedValue
+                    $d = ($dpc | Where-Object { $_.InstanceName -eq $core }).CookedValue
+                    $p = ($priv | Where-Object { $_.InstanceName -eq $core }).CookedValue
+                    "$timestamp, Core $core, $($i.ToString('F2')), $($d.ToString('F2')), $($p.ToString('F2'))" | Out-File $logFile -Append
                 }
+                "$timestamp, ContextSwitches/sec, $($cs.ToString('F0'))" | Out-File $logFile -Append
                 Start-Sleep -Seconds 5
             }
-        } -ArgumentList $interruptLog
+        } -ArgumentList $osStatsLog
     }
 
     $bench.WaitForExit()
