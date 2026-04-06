@@ -138,6 +138,7 @@ try {
     Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
     $gw_args = @(
         "@$doc_path\jvm\ws-api-throughput.args",
+        "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -160,12 +161,21 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000",   # 6萬 orders/sec
         "30",      # 30秒測量
-        "30"       # 30秒預熱
+        "60"       # 60秒預熱 (確保 ZGC Warmup cycles 在測量前完成)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，開始背景中斷監控..."
+
+    # 背景抓取 Gateway heap histogram (預熱結束時 + 測量中段)
+    $heapJob = Start-Job -ScriptBlock {
+        param($targetPid, $logDir)
+        Start-Sleep -Seconds 55  # 預熱接近結束時 (60s warmup)
+        jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_warmup.log"
+        Start-Sleep -Seconds 20  # 測量中段
+        jcmd $targetPid GC.class_histogram -all 2>&1 | Select-Object -First 50 | Out-File "$logDir\heap_gw_measure.log"
+    } -ArgumentList $g.Id, $log_path
 
     # 背景監控核心 2-7 的中斷佔比 (每 5 秒取樣一次)
     $interruptLog = "$log_path\interrupt_stats.log"
@@ -185,6 +195,7 @@ try {
     $bench.WaitForExit()
     Stop-Job $monitorTask
     Remove-Job $monitorTask
+    if ($heapJob) { Wait-Job $heapJob -Timeout 10; Stop-Job $heapJob -ErrorAction SilentlyContinue; Remove-Job $heapJob -ErrorAction SilentlyContinue }
 
     # --- 7. 抓取內部指標數據 (追加分析) ---
     Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."

@@ -88,6 +88,20 @@ public class WsSessionManager {
 
     public Long getUserIdByChannel(Channel c) { return c.attr(USER_ID_KEY).get(); }
 
+    /** 查詢用戶的主 Channel（單連線快速路徑，多連線回傳第一個活躍 channel） */
+    @SuppressWarnings("unchecked")
+    public Channel findChannel(long uid) {
+        int i = getIdx(uid);
+        Object target;
+        synchronized (locks[i]) { target = stripes[i].get(uid); }
+        if (target == null) return null;
+        if (target instanceof Channel c) return c.isActive() ? c : null;
+        for (Channel c : (Set<Channel>) target) {
+            if (c.isActive()) return c;
+        }
+        return null;
+    }
+
     /**
      * 向用戶的所有連線佇列二進制訊息（不 flush）。
      * 呼叫端應蒐集回傳的 Channel，批次結束後統一 flush 降低 syscall。

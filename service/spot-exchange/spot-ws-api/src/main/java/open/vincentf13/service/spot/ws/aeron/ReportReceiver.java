@@ -7,6 +7,7 @@ import io.aeron.logbuffer.Header;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -25,28 +26,28 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 /**
  * 回報接收器 (Report Receiver)
  *
- * ���閱 Matching Engine 的 Aeron 回報流，
- * 將 SBE 編碼的執行回報原樣轉發至對應用��的 WebSocket 連��。
+ * 訂閱 Matching Engine 的 Aeron 回報流，
+ * 將 SBE 編碼的執行回報原樣轉發至對應用戶的 WebSocket 連線。
  *
- * 回報格式：[0-3] MsgType | [4-11] reserved | [12-19] SBE header | [20+] SBE body
- * userId 位於 SBE body 的第二個欄位 (offset 20+8=28)。
+ * 優化策略：每輪 poll 收集所有回報到預分配陣列，按 Channel 分組後
+ * 提交單次 EventLoop task 批量寫入，避免 per-message 的跨線程 WriteTask 分配。
  */
 @Slf4j
 @Component
 public class ReportReceiver extends Worker {
 
-    private static final int USER_ID_OFFSET = 28; // 20 (header) + 8 (timestamp) = userId position
+    private static final int USER_ID_OFFSET = 28;
     private static final PooledByteBufAllocator ALLOC = PooledByteBufAllocator.DEFAULT;
 
     private final WsSessionManager sessionManager;
     private Subscription subscription;
     private FragmentAssembler assembler;
 
-    // 待 flush channel 的線性陣列（報文批次結束後一次 flush，大幅減少 syscalls）
-    private final Channel[] pendingFlush = new Channel[AeronConstants.AERON_POLL_LIMIT];
-    private int pendingFlushCount = 0;
+    // 預分配批次陣列，避免 per-message 的 ArrayList/record 分配
+    private final Channel[] batchChannels = new Channel[AeronConstants.AERON_POLL_LIMIT];
+    private final ByteBuf[] batchBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT];
+    private int batchCount = 0;
 
-    /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
         super("report-receiver",
               MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER,
@@ -67,13 +68,8 @@ public class ReportReceiver extends Worker {
     @Override
     protected int doWork() {
         int work = subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
-        // 批次 flush：所有本輪 poll 累積的 write 一次 flush，省 syscall。
-        if (pendingFlushCount > 0) {
-            for (int i = 0; i < pendingFlushCount; i++) {
-                pendingFlush[i].flush();
-                pendingFlush[i] = null;
-            }
-            pendingFlushCount = 0;
+        if (batchCount > 0) {
+            flushBatch();
         }
         return work;
     }
@@ -83,17 +79,63 @@ public class ReportReceiver extends Worker {
         long userId = buffer.getLong(offset + USER_ID_OFFSET, ByteOrder.LITTLE_ENDIAN);
         StaticMetricsHolder.addCounter(MetricsKey.REPORT_RECV_COUNT, 1);
 
-        // 從 Netty pool 取 heap ByteBuf，避免 per-message 的 byte[] + Unpooled wrap 分配
-        ByteBuf nettyBuf = ALLOC.heapBuffer(length, length);
-        buffer.getBytes(offset, nettyBuf.array(), nettyBuf.arrayOffset(), length);
+        Channel ch = sessionManager.findChannel(userId);
+        if (ch == null || !ch.isActive()) return;
+
+        ByteBuf nettyBuf = ALLOC.directBuffer(length, length);
+        buffer.getBytes(offset, nettyBuf.nioBuffer(0, length), length);
         nettyBuf.writerIndex(length);
-        Channel ch = sessionManager.queueMessage(userId, nettyBuf);
-        // 記錄待 flush channel（小陣列線性去重：單用戶壓測恆為 O(1)）
-        if (ch != null) {
-            for (int i = 0; i < pendingFlushCount; i++) {
-                if (pendingFlush[i] == ch) return;
+
+        batchChannels[batchCount] = ch;
+        batchBufs[batchCount] = nettyBuf;
+        batchCount++;
+    }
+
+    /**
+     * 單 Channel 快速路徑：1 次 eventLoop.execute() 批量寫入所有回報。
+     * 多 Channel 路徑：每 Channel 1 次 execute()。
+     * 原先 N 次跨線程 WriteTask + ChannelPromise 降為 ≤channelCount 次。
+     */
+    private void flushBatch() {
+        int count = batchCount;
+        batchCount = 0;
+
+        // 快速路徑：所有回報都給同一個 Channel（壓測典型場景）
+        Channel firstCh = batchChannels[0];
+        boolean singleChannel = true;
+        for (int i = 1; i < count; i++) {
+            if (batchChannels[i] != firstCh) { singleChannel = false; break; }
+        }
+
+        if (singleChannel) {
+            // 複製 buf 參考到局部陣列，避免 lambda 捕獲 this 的可變欄位
+            ByteBuf[] bufs = new ByteBuf[count];
+            System.arraycopy(batchBufs, 0, bufs, 0, count);
+            clearRefs(count);
+            firstCh.eventLoop().execute(() -> {
+                for (ByteBuf buf : bufs) firstCh.write(new BinaryWebSocketFrame(buf));
+                firstCh.flush();
+            });
+            return;
+        }
+
+        // 多 Channel 路徑：逐條 writeAndFlush
+        for (int i = 0; i < count; i++) {
+            Channel ch = batchChannels[i];
+            ByteBuf buf = batchBufs[i];
+            if (ch.isActive()) {
+                ch.eventLoop().execute(() -> ch.writeAndFlush(new BinaryWebSocketFrame(buf)));
+            } else {
+                buf.release();
             }
-            if (pendingFlushCount < pendingFlush.length) pendingFlush[pendingFlushCount++] = ch;
+        }
+        clearRefs(count);
+    }
+
+    private void clearRefs(int count) {
+        for (int i = 0; i < count; i++) {
+            batchChannels[i] = null;
+            batchBufs[i] = null;
         }
     }
 
