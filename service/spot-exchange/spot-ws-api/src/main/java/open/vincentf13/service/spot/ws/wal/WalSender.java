@@ -111,7 +111,9 @@ public class WalSender extends Worker {
     protected int doWork() {
         if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
 
+        long beforeControl = DIAGNOSE ? System.nanoTime() : 0;
         int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
+        if (DIAGNOSE) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_CONTROL_POLL, System.nanoTime() - beforeControl);
 
         if (currentState == AeronState.WAITING) {
             // WAITING：排空 Disruptor 防止堆積。WAL 模式寫入持久化，Bypass 模式丟棄。
