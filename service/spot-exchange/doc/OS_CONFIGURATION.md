@@ -34,7 +34,15 @@
 *   **Windows**
     *   **中斷優化**：停用網卡「中斷裁減」(Interrupt Moderation)，開啟 RSS。
     *   **優先級**：將核心交易進程設為 `RealTime` 優先級。
-    *   **中斷綁定**：使用工具將硬體中斷 (MSI-X) 導向至非交易核心 (如 Core 0, 1)。
+    *   **硬體中斷隔離 (Interrupt Affinity Steering)**：
+        *   **目標**：將網卡處理封包產生的「中斷 (MSI-X)」強制導向共享核心 (0, 1, 14, 15)，嚴禁中斷落在交易核心 (2-7)。
+        *   **工具**：[Interrupt Affinity Policy Tool (intfiltr.exe)](https://github.com/microsoft/MSI-Utility)。
+        *   **步驟**：
+            1. 以管理員身分執行 `intfiltr.exe`。
+            2. 找到您的網卡（如：Wi-Fi 7 或 Ethernet Controller）。
+            3. 點擊 「Set Affinity」，僅勾選核心 0, 1, 14, 15（取消其餘勾選）。
+            4. 點擊 Done 並重啟電腦。
+        *   **驗證**：壓測期間執行 `(Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples`，確認核心 2-7 的中斷時間接近 0%。
 *   **Linux**
     *   **無滴答模式**：開啟 `nohz_full` 減少系統時鐘中斷干擾。
     *   **中斷綁定**：設定 `smp_affinity` 將網卡中斷鎖定在特定共享核心。
