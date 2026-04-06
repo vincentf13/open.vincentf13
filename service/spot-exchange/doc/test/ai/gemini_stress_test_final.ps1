@@ -309,10 +309,15 @@ try {
     if ($Diagnose) {
         Write-Host "正在抓取 heap histogram 和內部指標..."
 
-        # Heap histogram — 直接在主線程跑 jcmd，Gateway 此刻仍存活
+        # Heap histogram — 用 jps 查找 Gateway 的實際 Java PID (Start-Process 返回的可能是 wrapper PID)
         try {
-            jcmd $g.Id GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
-            Write-Host "Heap histogram 已存至 heap_gw_measure.log"
+            $gwPid = (jps -l | Select-String "WsApiApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
+            if ($gwPid) {
+                jcmd $gwPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
+                Write-Host "Heap histogram 已存至 heap_gw_measure.log (PID: $gwPid)"
+            } else {
+                Write-Warning "jps 找不到 WsApiApp 進程"
+            }
         } catch {
             Write-Warning "jcmd 失敗: $($_.Exception.Message)"
         }
