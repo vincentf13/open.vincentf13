@@ -75,6 +75,7 @@ public class BenchmarkTool {
             Channel ch = new Bootstrap()
                     .group(group)
                     .channel(NioSocketChannel.class)
+                    .option(io.netty.channel.ChannelOption.TCP_NODELAY, true)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override protected void initChannel(SocketChannel sc) {
                             sc.pipeline().addLast(

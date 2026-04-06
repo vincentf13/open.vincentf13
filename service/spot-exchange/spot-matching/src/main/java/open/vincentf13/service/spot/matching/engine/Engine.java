@@ -93,8 +93,8 @@ public class Engine {
     }
 
     public void onPollCycle(int done, long latestSeq) {
-        if (done > 0) lastReceivedSeq = latestSeq;
-        // 每輪都翻轉（指針操作 ns 級）+ 準備 progress 快照
+        if (done == 0) return; // 空 poll：跳過 rotate + snapshot，加快 poll 迴圈
+        lastReceivedSeq = latestSeq;
         rotateAll();
         prepareProgressSnap();
     }
