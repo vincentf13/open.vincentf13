@@ -66,6 +66,13 @@ public class WalSender extends Worker {
     private final DepositEncoder depositEncoder = new DepositEncoder();
     private final AuthEncoder authEncoder = new AuthEncoder();
 
+    // ===== 當前訊息狀態 (單線程，用 fields 取代 per-call lambda 捕獲) =====
+    private int curMsgType;
+    private long curWalIndex, curGwTime, curTimestamp, curUserId;
+    private int curSymbolId, curAssetId;
+    private long curPrice, curQty, curClientOrderId, curOrderId, curAmount;
+    private byte curSide;
+
     // ===== Metrics =====
     private int pollCount;
     private long localWriteCount;
@@ -212,101 +219,93 @@ public class WalSender extends Worker {
     // ===== Aeron 發送：直接從 WalEvent 編碼 SBE (LIVE 模式) =====
 
     private void sendFromEvent(WalEvent e, long walIndex) {
+        curMsgType = e.msgType;
+        curWalIndex = walIndex;
+        curGwTime = e.arrivalTimeNs;
+        curTimestamp = e.timestamp;
+        curUserId = e.userId;
         switch (e.msgType) {
             case MsgType.ORDER_CREATE -> {
-                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
                 WalOrderCreate oc = e.orderCreate;
-                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
-                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(e.timestamp).userId(e.userId).symbolId(oc.symbolId)
-                        .price(oc.price).qty(oc.qty).side(Side.get((short) oc.side)).clientOrderId(oc.clientOrderId));
+                curSymbolId = oc.symbolId; curPrice = oc.price; curQty = oc.qty;
+                curSide = oc.side; curClientOrderId = oc.clientOrderId;
             }
-            case MsgType.ORDER_CANCEL -> {
-                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
-                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
-                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(e.timestamp).userId(e.userId).orderId(e.orderCancel.orderId));
-            }
-            case MsgType.DEPOSIT -> {
-                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
-                WalDeposit d = e.deposit;
-                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
-                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(e.timestamp).userId(e.userId).assetId(d.assetId).amount(d.amount));
-            }
-            case MsgType.AUTH -> {
-                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
-                trySendSbe(e.msgType, len, walIndex, e.arrivalTimeNs, (buf, off) ->
-                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(e.timestamp).userId(e.userId));
-            }
+            case MsgType.ORDER_CANCEL -> curOrderId = e.orderCancel.orderId;
+            case MsgType.DEPOSIT -> { curAssetId = e.deposit.assetId; curAmount = e.deposit.amount; }
         }
+        trySend(sbeBodyLength(e.msgType));
     }
 
     // ===== Aeron 發送：從 BinaryWire 解碼 (REPLAY 模式) =====
 
     private boolean readAndSendFromWire(Wire wire, long walIndex) {
-        int msgType = wire.read(WalField.msgType).int32();
-        long gwTime = wire.read(WalField.gwTime).int64();
-        long userId = wire.read(WalField.userId).int64();
-        long ts     = wire.read(WalField.timestamp).int64();
-
-        return switch (msgType) {
+        curMsgType   = wire.read(WalField.msgType).int32();
+        curGwTime    = wire.read(WalField.gwTime).int64();
+        curUserId    = wire.read(WalField.userId).int64();
+        curTimestamp  = wire.read(WalField.timestamp).int64();
+        curWalIndex  = walIndex;
+        switch (curMsgType) {
             case MsgType.ORDER_CREATE -> {
-                int symbolId = wire.read(WalField.symbolId).int32();
-                long price   = wire.read(WalField.price).int64();
-                long qty     = wire.read(WalField.qty).int64();
-                byte side    = wire.read(WalField.side).int8();
-                long cid     = wire.read(WalField.clientOrderId).int64();
-                int len = AbstractSbeModel.BODY_OFFSET + OrderCreateEncoder.BLOCK_LENGTH;
-                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
-                    orderCreateEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(ts).userId(userId).symbolId(symbolId)
-                        .price(price).qty(qty).side(Side.get((short) side)).clientOrderId(cid));
+                curSymbolId = wire.read(WalField.symbolId).int32();
+                curPrice = wire.read(WalField.price).int64();
+                curQty = wire.read(WalField.qty).int64();
+                curSide = wire.read(WalField.side).int8();
+                curClientOrderId = wire.read(WalField.clientOrderId).int64();
             }
-            case MsgType.ORDER_CANCEL -> {
-                long orderId = wire.read(WalField.orderId).int64();
-                int len = AbstractSbeModel.BODY_OFFSET + OrderCancelEncoder.BLOCK_LENGTH;
-                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
-                    orderCancelEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(ts).userId(userId).orderId(orderId));
-            }
-            case MsgType.DEPOSIT -> {
-                int assetId = wire.read(WalField.assetId).int32();
-                long amount = wire.read(WalField.amount).int64();
-                int len = AbstractSbeModel.BODY_OFFSET + DepositEncoder.BLOCK_LENGTH;
-                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
-                    depositEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(ts).userId(userId).assetId(assetId).amount(amount));
-            }
-            case MsgType.AUTH -> {
-                int len = AbstractSbeModel.BODY_OFFSET + AuthEncoder.BLOCK_LENGTH;
-                yield trySendSbe(msgType, len, walIndex, gwTime, (buf, off) ->
-                    authEncoder.wrapAndApplyHeader(buf, off + AbstractSbeModel.SBE_HEADER_OFFSET, sbeHeaderEncoder)
-                        .timestamp(ts).userId(userId));
-            }
-            default -> true;
+            case MsgType.ORDER_CANCEL -> curOrderId = wire.read(WalField.orderId).int64();
+            case MsgType.DEPOSIT -> { curAssetId = wire.read(WalField.assetId).int32(); curAmount = wire.read(WalField.amount).int64(); }
+            default -> { return true; }
+        }
+        return trySend(sbeBodyLength(curMsgType));
+    }
+
+    private int sbeBodyLength(int msgType) {
+        return AbstractSbeModel.BODY_OFFSET + switch (msgType) {
+            case MsgType.ORDER_CREATE -> OrderCreateEncoder.BLOCK_LENGTH;
+            case MsgType.ORDER_CANCEL -> OrderCancelEncoder.BLOCK_LENGTH;
+            case MsgType.DEPOSIT -> DepositEncoder.BLOCK_LENGTH;
+            case MsgType.AUTH -> AuthEncoder.BLOCK_LENGTH;
+            default -> 0;
         };
     }
 
-    // ===== Aeron trySendSbe (from AeronSender) =====
+    // ===== 預分配 Aeron handler — zero allocation per call =====
 
-    private boolean trySendSbe(int msgType, int totalLen, long walIndex, long gwTime, AeronUtil.AeronHandler bodyFiller) {
+    private final AeronUtil.AeronHandler aeronFiller = this::fillAeronBuffer;
+
+    private void fillAeronBuffer(MutableDirectBuffer buf, int off) {
+        buf.putInt(off + AbstractSbeModel.TYPE_OFFSET, curMsgType, ByteOrder.LITTLE_ENDIAN);
+        buf.putInt(off + 4, 0, ByteOrder.LITTLE_ENDIAN);
+        buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, curWalIndex, ByteOrder.LITTLE_ENDIAN);
+        buf.putLong(off + AbstractSbeModel.GATEWAY_TIME_OFFSET, curGwTime, ByteOrder.LITTLE_ENDIAN);
+
+        int sbeOff = off + AbstractSbeModel.SBE_HEADER_OFFSET;
+        switch (curMsgType) {
+            case MsgType.ORDER_CREATE ->
+                orderCreateEncoder.wrapAndApplyHeader(buf, sbeOff, sbeHeaderEncoder)
+                    .timestamp(curTimestamp).userId(curUserId).symbolId(curSymbolId)
+                    .price(curPrice).qty(curQty).side(Side.get((short) curSide)).clientOrderId(curClientOrderId);
+            case MsgType.ORDER_CANCEL ->
+                orderCancelEncoder.wrapAndApplyHeader(buf, sbeOff, sbeHeaderEncoder)
+                    .timestamp(curTimestamp).userId(curUserId).orderId(curOrderId);
+            case MsgType.DEPOSIT ->
+                depositEncoder.wrapAndApplyHeader(buf, sbeOff, sbeHeaderEncoder)
+                    .timestamp(curTimestamp).userId(curUserId).assetId(curAssetId).amount(curAmount);
+            case MsgType.AUTH ->
+                authEncoder.wrapAndApplyHeader(buf, sbeOff, sbeHeaderEncoder)
+                    .timestamp(curTimestamp).userId(curUserId);
+        }
+    }
+
+    private boolean trySend(int totalLen) {
         while (running.get()) {
-            int res = AeronUtil.send(publication, totalLen, (buf, off) -> {
-                buf.putInt(off + AbstractSbeModel.TYPE_OFFSET, msgType, ByteOrder.LITTLE_ENDIAN);
-                buf.putInt(off + 4, 0, ByteOrder.LITTLE_ENDIAN);
-                buf.putLong(off + AbstractSbeModel.SEQ_OFFSET, walIndex, ByteOrder.LITTLE_ENDIAN);
-                buf.putLong(off + AbstractSbeModel.GATEWAY_TIME_OFFSET, gwTime, ByteOrder.LITTLE_ENDIAN);
-                bodyFiller.onFill(buf, off);
-            });
-
+            int res = AeronUtil.send(publication, totalLen, aeronFiller);
             if (res == SEND_OK) {
-                if (walIndex == 1) log.info("[WAL-SENDER] 成功發送第一條消息 (seq=1)");
+                if (curWalIndex == 1) log.info("[WAL-SENDER] 成功發送第一條消息 (seq=1)");
                 return true;
             }
             if (res == SEND_BACKPRESSURE) { localBackPressure++; Thread.onSpinWait(); continue; }
-            log.warn("[WAL-SENDER] send failed res={}, walIndex={}", res, walIndex);
+            log.warn("[WAL-SENDER] send failed res={}, walIndex={}", res, curWalIndex);
             if (res == SEND_DISCONNECTED) currentState = AeronState.WAITING;
             return false;
         }
