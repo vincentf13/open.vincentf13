@@ -107,12 +107,12 @@ try {
     $driver.ProcessorAffinity = 53251
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 3. 啟動 Matching Engine (4GB, P-Core 2 | Mask: 4) ---
-    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
+    # --- 3. 啟動 Matching Engine (8GB, P-Core 2 | Mask: 4) ---
+    Write-Host "Starting Matching Engine (8GB, P-Core 2)..."
     $matching_args = @(
         "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Xms4G", "-Xmx4G", 
+        "-Xms8G", "-Xmx8G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -124,13 +124,11 @@ try {
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $e.MinWorkingSet = $e.MaxWorkingSet
 
-    # --- 4. 啟動 Gateway (WS-API) (10GB, P-Cores 3-7 | Mask: 248) ---
-    Write-Host "Starting Gateway (WS-API) (10GB, P-Cores 3-7)..."
+    # --- 4. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 | Mask: 248) ---
+    Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
     $g_dest = "$base_path\service\spot-exchange\spot-ws-api\target\extracted"
     $gw_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
-        "-Xms10G", "-Xmx10G",
         "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -148,7 +146,6 @@ try {
     # --- 5. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."
     $bench_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",

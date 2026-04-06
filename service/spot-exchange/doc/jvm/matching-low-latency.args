@@ -44,6 +44,8 @@
 # --- 記憶體配置 (4GB Heap + 8GB Direct) ---
 -Xms4G
 -Xmx4G
+-Xlog:gc+init
+-Xlog:pagesize
 -XX:MaxDirectMemorySize=8G
 -XX:+AlwaysPreTouch
 # Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。

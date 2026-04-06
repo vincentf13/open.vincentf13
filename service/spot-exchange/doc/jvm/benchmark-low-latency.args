@@ -14,6 +14,8 @@
 # --- 小 heap 足夠，benchmark 壓力有限 ---
 -Xms2g
 -Xmx2g
+-Xlog:gc+init
+-Xlog:pagesize
 -XX:+AlwaysPreTouch
 -XX:+UseLargePages
 -XX:LargePageSizeInBytes=2m

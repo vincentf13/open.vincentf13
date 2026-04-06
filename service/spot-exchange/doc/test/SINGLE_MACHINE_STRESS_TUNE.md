@@ -3,7 +3,7 @@
 ## 0. 一鍵編譯與綁核啟動 (Master Startup Script)
 此腳本為系統最終極優化版本，已實作：
 1. **OS 層級配置**：鎖定 0.5ms 高精度時鐘、強制「卓越效能」電源計畫、關閉網卡封包合併與省電模式。
-2. **記憶體配置**：預分配 Aeron 磁碟空間，啟用 Large Pages (大頁記憶體)，Heap 容量收斂至 4GB。
+2. **記憶體配置**：預分配 Aeron 磁碟空間，啟用 Large Pages (大頁記憶體)，Heap 容量收斂至 2GB。
 3. **精確綁核與中斷監控**：徹底隔離業務核心 (Core 2-7) 與 OS/Netty Boss/Benchmark 核心，並於壓測期間自動收集核心中斷佔比與內部飽和度指標。
 
 請將以下內容存為 `.ps1` 執行：
@@ -131,9 +131,7 @@ try {
     # --- 4. 啟動 Matching Engine (4GB, P-Core 2) ---
     Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
     $matching_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Xms4G", "-Xmx4G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -148,9 +146,7 @@ try {
     # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7) ---
     Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
     $gw_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
-        "-Xms4G", "-Xmx4G",
         "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -168,7 +164,6 @@ try {
     # --- 6. 啟動 Java Benchmark (Cores 8-11) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."
     $bench_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
