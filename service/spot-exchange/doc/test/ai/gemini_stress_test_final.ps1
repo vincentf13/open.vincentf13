@@ -1,18 +1,13 @@
-# Swift Go 16 (SFG16-73) 極限壓測優化指南 (Arrow Lake Ultra 9 深度調優版)
-
-## 0. 一鍵編譯與綁核啟動 (Master Startup Script)
-此腳本已優化啟動順序：**嚴格執行「啟動 -> 立即綁核 -> 等待穩態 -> 下一個」**，確保物理核心分配不衝突。
-```powershell
 # ==============================================================================
-# Aeron 交易系統自動化部署與啟動腳本 (高效能隔離版 + OS 深度優化)
+# Aeron 交易系統自動化部署與啟動腳本 (Gemini 最終優化分析版)
 # ==============================================================================
 
-# --- 0. 基礎路徑配置 ---
 $base_path = "C:\iProject\open.vincentf13"
 $aeron_dir = "$base_path\data\spot-exchange"
 $doc_path  = "$base_path\service\spot-exchange\doc"
+$log_path  = "$doc_path\test\log"
 
-# --- 0.1 系統環境優化 C# 嵌入 ---
+# --- 0. 系統環境優化 C# 嵌入 ---
 $TimerCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -23,6 +18,7 @@ public class HighPrecisionTimer {
 
     public static void SetMaxResolution() {
         uint current;
+        // 5000 units = 0.5ms (1 unit = 100ns)
         NtSetTimerResolution(5000, true, out current);
     }
     
@@ -36,9 +32,14 @@ if (-not ([PSObject].Assembly.GetType("HighPrecisionTimer"))) {
     Add-Type -TypeDefinition $TimerCode
 }
 
-# 記錄目前的電源計畫並準備切換
-$currentScheme = (powercfg /getactivescheme).Split(' ')[3]
-$ultimateScheme = "e9a42b02-d5df-448d-aa00-03f14749eb61" # 卓越效能
+# 記錄目前的電源計畫並準備切換 (相容性抓取)
+$schemeOutput = powercfg /getactivescheme
+if ($schemeOutput -match "([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})") {
+    $currentScheme = $matches[1]
+} else {
+    $currentScheme = "381b4222-f694-41f0-9685-ff5bb260df2e" # 預設平衡模式
+}
+$ultimateScheme = "e9a42b02-d5df-448d-aa00-03f14749eb61" # 卓越效能 GUID
 
 # 安全清理函數
 function Safe-Remove($path) {
@@ -53,6 +54,9 @@ try {
     [HighPrecisionTimer]::SetMaxResolution()
     powercfg /setactive $ultimateScheme
 
+    # 確保日誌目錄存在
+    if (!(Test-Path $log_path)) { New-Item -ItemType Directory -Force $log_path }
+
     # --- 1. 強制清理舊環境 ---
     Write-Host "正在停止舊 Java 進程並清理共享記憶體..."
     Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -64,29 +68,12 @@ try {
     Write-Host "正在執行磁碟空間預分配 (WAL & State: 1GB)..."
     fsutil file createnew "$aeron_dir\wal-spot-exchange.dat" 1073741824 | Out-Null
     fsutil file createnew "$aeron_dir\matching-engine-state.dat" 1073741824 | Out-Null
+    # 建立 map 目錄避免 IOException
+    New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
 
-    # --- 2. 執行並行 Maven 編譯 ---
-    Write-Host "正在執行並行 Maven 編譯 (Threads=3C, Skip Tests)..."
-    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am
-    if ($LASTEXITCODE -ne 0) { throw "Maven 構建失敗。" }
-
-    # --- 3. 準備運行環境 (並行 Layertools 解壓) ---
-    Write-Host "正在並行提取層級化 Jar 內容 (layertools)..."
-    $m_t = "$base_path\service\spot-exchange\spot-matching\target"
-    $m_dest = "$m_t\extracted"
-    $g_t = "$base_path\service\spot-exchange\spot-ws-api\target"
-    $g_dest = "$g_t\extracted"
-
-    Safe-Remove $m_dest
-    Safe-Remove $g_dest
-
-    $job1 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-matching.jar" extract --destination "$d/" } -ArgumentList $m_t, $m_dest
-    $job2 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-ws-api.jar" extract --destination "$d/" } -ArgumentList $g_t, $g_dest
-    Wait-Job $job1, $job2 | Out-Null
-    Remove-Job $job1, $job2
-
-    # --- 4. 啟動 獨立式 Media Driver (Mask: 61955) ---
-    Write-Host "Starting Standalone Media Driver on Dedicated CPUs 9, 12, 13..."
+    # --- 2. 啟動 獨立式 Media Driver (Mask: 61955) ---
+    Write-Host "Starting Standalone Media Driver..."
+    $m_dest = "$base_path\service\spot-exchange\spot-matching\target\extracted"
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -112,53 +99,56 @@ try {
     $driver.ProcessorAffinity = 61955
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 5. & 6. 並行啟動 Engine 與 Gateway ---
-    Write-Host "正在並行啟動 Matching Engine 與 Gateway (WS-API)..."
-
+    # --- 3. 啟動 Matching Engine (2GB) ---
+    Write-Host "Starting Matching Engine (2GB)..."
     $matching_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
+        "-Xms2G", "-Xmx2G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
+    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
+    $e.ProcessorAffinity = 49159
+    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
+    $e.MinWorkingSet = $e.MaxWorkingSet
 
+    # --- 4. 啟動 Gateway (WS-API) (2GB) ---
+    Write-Host "Starting Gateway (WS-API) (2GB)..."
+    $g_dest = "$base_path\service\spot-exchange\spot-ws-api\target\extracted"
     $gw_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\ws-api-throughput.args",
+        "-Xms2G", "-Xmx2G",
         "-Dspot.affinity.cores=3,4,5,6,7,8",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
-
-    $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$doc_path\test\error_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49159
-    $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
-    $e.MinWorkingSet = $e.MaxWorkingSet
-
-    $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$doc_path\test\error_gw.log" -PassThru -WindowStyle Hidden
+    $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
     $g.ProcessorAffinity = 49659
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $g.MinWorkingSet = $g.MaxWorkingSet
 
-    Write-Host "服務已發射：Matching (PID: $($e.Id)), Gateway (PID: $($g.Id)) 已設為 RealTime 優先級。"
+    Write-Host "等待服務穩態 (20s)..."
+    Start-Sleep -Seconds 20
 
-    # --- 7. 啟動 Java Benchmark (Mask: 52227) ---
-    $log_dir = "$doc_path\test\log"
-    if (-not (Test-Path $log_dir)) { New-Item -ItemType Directory -Path $log_dir }
-
-    Write-Host "所有服務就緒。正在啟動 Java Benchmark..."
-
+    # --- 5. 啟動 Java Benchmark ---
+    Write-Host "Starting Java Benchmark..."
     $bench_args = @(
+        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-        "60000", "60", "60"
+        "60000",   # 6萬 orders/sec
+        "30",      # 30秒測量
+        "30"       # 30秒預熱
     )
-    $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow    
-    Start-Sleep -Milliseconds 500
+    $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 52227
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動，等待完成..."
@@ -166,14 +156,15 @@ try {
 
 } finally {
     Write-Host ">>> [OS] 還原系統環境並清理進程..."
-    [HighPrecisionTimer]::ResetResolution()
-    powercfg /setactive $currentScheme
+    if ([PSObject].Assembly.GetType("HighPrecisionTimer")) {
+        [HighPrecisionTimer]::ResetResolution()
+    }
+    if ($currentScheme) { powercfg /setactive $currentScheme }
     
-    # 確保關閉所有啟動的服務 (如果還活著)
+    # 確保關閉所有啟動的服務
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
     if ($e -and !$e.HasExited) { Stop-Process -Id $e.Id -Force }
     if ($g -and !$g.HasExited) { Stop-Process -Id $g.Id -Force }
-    
-    Write-Host "壓測腳本執行完畢。"
+
+    Write-Host "分析結果已輸出至 $log_path\benchmark_result.log"
 }
-```
