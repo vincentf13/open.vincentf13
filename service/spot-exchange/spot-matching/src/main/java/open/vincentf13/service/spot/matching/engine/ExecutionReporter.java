@@ -58,7 +58,7 @@ public class ExecutionReporter implements AutoCloseable {
         sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_ACCEPTED);
             acceptedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(System.nanoTime())
+                .timestamp(matchingEndNs)  // 共用 writeFrameHeader 的 nanoTime
                 .userId(taker.getUserId())
                 .orderId(taker.getOrderId())
                 .clientOrderId(taker.getClientOrderId());
@@ -72,7 +72,7 @@ public class ExecutionReporter implements AutoCloseable {
         sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_REJECTED);
             rejectedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(System.nanoTime())
+                .timestamp(matchingEndNs)
                 .userId(userId)
                 .clientOrderId(clientOrderId);
         });
@@ -80,7 +80,6 @@ public class ExecutionReporter implements AutoCloseable {
 
     public void reportMatch(Order taker, Order maker, Trade trade) {
         matchedCount++;
-        // 分別給 taker 和 maker 發送成交回報
         sendMatchReport(taker, trade);
         sendMatchReport(maker, trade);
     }
@@ -90,14 +89,14 @@ public class ExecutionReporter implements AutoCloseable {
         sendWithRetry(len, (buf, off) -> {
             writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
             matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
-                .timestamp(System.nanoTime())
+                .timestamp(matchingEndNs)  // 共用 writeFrameHeader 的 nanoTime
                 .userId(order.getUserId())
                 .orderId(order.getOrderId())
                 .status(OrderStatus.get((short) order.getStatus()))
                 .lastPrice(trade.getPrice())
                 .lastQty(trade.getQty())
                 .cumQty(order.getFilled())
-                .avgPrice(trade.getPrice()) // 簡化：單一成交價
+                .avgPrice(trade.getPrice())
                 .clientOrderId(order.getClientOrderId());
         });
     }
