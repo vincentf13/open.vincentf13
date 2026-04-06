@@ -250,8 +250,8 @@ try {
     $g.ProcessorAffinity = 49403 # 核心 3-7 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    Write-Host "等待服務穩態 (20s)..."
-    Start-Sleep -Seconds 20
+    Write-Host "等待服務穩態 (30s)..."
+    Start-Sleep -Seconds 30
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."

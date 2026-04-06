@@ -43,10 +43,10 @@
 # 在有足夠 heap 時白白消耗 CPU 與 cache，與 busy-spin worker 競爭。
 -XX:-ZProactive
 
-# --- 記憶體配置 (6GB Heap，降低 GC 壓力) ---
-# 4GB 時 heap 使用率 79.6%，GC 230 次。6GB 給更多 headroom 減少 GC 頻率。
--Xms6G
--Xmx6G
+# --- 記憶體配置 (4GB Heap) ---
+# 32GB 機器 + Large Pages + Chronicle mlock 限制下，4GB 是大頁分配的上限。
+-Xms4G
+-Xmx4G
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=4G
