@@ -20,7 +20,7 @@ public class HighPrecisionTimer {
         uint current;
         NtSetTimerResolution(5000, true, out current);
     }
-    
+
     public static void ResetResolution() {
         uint current;
         NtSetTimerResolution(5000, false, out current);
@@ -57,7 +57,7 @@ try {
     Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、切換至卓越效能..."
     [HighPrecisionTimer]::SetMaxResolution()
     powercfg /setactive $ultimateScheme
-    
+
     # 關閉網卡干擾屬性
     if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue }
     if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue "No SMPS" -ErrorAction SilentlyContinue }
@@ -79,9 +79,22 @@ try {
     # 建立 map 目錄避免 IOException
     New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
 
-    # --- 2. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 53251) ---
+    # --- 2. 執行 Maven 編譯與解壓 ---
+    Write-Host "正在執行 Maven 構建與並行提取層級化 Jar..."
+    mvn -f "$base_path\pom.xml" clean package -DskipTests -T 3C -pl service/spot-exchange/spot-matching,service/spot-exchange/spot-ws-api -am | Out-Null
+
+    $m_t = "$base_path\service\spot-exchange\spot-matching\target"
+    $m_dest = "$m_t\extracted"
+    $g_t = "$base_path\service\spot-exchange\spot-ws-api\target"
+    $g_dest = "$g_t\extracted"
+
+    $job1 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-matching.jar" extract --destination "$d/" } -ArgumentList $m_t, $m_dest
+    $job2 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-ws-api.jar" extract --destination "$d/" } -ArgumentList $g_t, $g_dest
+    Wait-Job $job1, $job2 | Out-Null
+    Remove-Job $job1, $job2
+
+    # --- 3. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 53251) ---
     Write-Host "Starting Standalone Media Driver..."
-    $m_dest = "$base_path\service\spot-exchange\spot-matching\target\extracted"
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -107,12 +120,10 @@ try {
     $driver.ProcessorAffinity = 53251
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 3. 啟動 Matching Engine (8GB, P-Core 2 | Mask: 4) ---
-    Write-Host "Starting Matching Engine (8GB, P-Core 2)..."
+    # --- 4. 啟動 Matching Engine (4GB, P-Core 2 | Mask: 4) ---
+    Write-Host "Starting Matching Engine (4GB, P-Core 2)..."
     $matching_args = @(
-        "-Xlog:gc+init", "-Xlog:pagesize",
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Xms8G", "-Xmx8G", 
         "-Dspot.affinity.cores=2",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -124,9 +135,8 @@ try {
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
     $e.MinWorkingSet = $e.MaxWorkingSet
 
-    # --- 4. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 | Mask: 248) ---
+    # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 | Mask: 248) ---
     Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
-    $g_dest = "$base_path\service\spot-exchange\spot-ws-api\target\extracted"
     $gw_args = @(
         "@$doc_path\jvm\ws-api-throughput.args",
         "-Dspot.affinity.cores=3,4,5,6,7",
@@ -143,7 +153,7 @@ try {
     Write-Host "等待服務穩態 (20s)..."
     Start-Sleep -Seconds 20
 
-    # --- 5. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
+    # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."
     $bench_args = @(
         "@$doc_path\jvm\benchmark-low-latency.args",
@@ -177,7 +187,7 @@ try {
     Stop-Job $monitorTask
     Remove-Job $monitorTask
 
-    # --- 6. 抓取內部指標數據 (追加分析) ---
+    # --- 7. 抓取內部指標數據 (追加分析) ---
     Write-Host "正在從接口抓取內部飽和度與 TPS 指標..."
     try {
         $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
@@ -195,11 +205,11 @@ try {
         [HighPrecisionTimer]::ResetResolution()
     }
     if ($currentScheme) { powercfg /setactive $currentScheme }
-    
+
     # 還原網卡屬性
     if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue $originalCoalescing -ErrorAction SilentlyContinue }
     if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue $originalMimo -ErrorAction SilentlyContinue }
-    
+
     # 確保關閉所有啟動的服務
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
     if ($e -and !$e.HasExited) { Stop-Process -Id $e.Id -Force }

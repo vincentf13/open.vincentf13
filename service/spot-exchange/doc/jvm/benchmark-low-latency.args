@@ -12,8 +12,8 @@
 -XX:ConcGCThreads=2
 
 # --- 小 heap 足夠，benchmark 壓力有限 ---
--Xms2g
--Xmx2g
+-Xms1g
+-Xmx1g
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:+AlwaysPreTouch
