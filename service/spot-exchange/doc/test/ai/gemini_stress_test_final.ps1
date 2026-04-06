@@ -295,11 +295,21 @@ try {
     if ($resetJob) { Wait-Job $resetJob -Timeout 5; Remove-Job $resetJob -ErrorAction SilentlyContinue }
     if ($monitorTask) { Stop-Job $monitorTask; Remove-Job $monitorTask }
 
-    # --- 7. 抓取診斷數據 (僅 -Diagnose 模式，Gateway 還活著) ---
-    if ($Diagnose) {
-        Write-Host "正在抓取 heap histogram 和內部指標..."
+    # --- 7. 抓取內部指標 (每次都做，Gateway 還活著) ---
+    Write-Host "正在抓取內部指標..."
+    try {
+        $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
+        $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
+        $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
+        $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
+        Write-Host "內部指標抓取成功"
+    } catch {
+        Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
+    }
 
-        # Heap histogram — 用 jps 查找 Gateway 的實際 Java PID (Start-Process 返回的可能是 wrapper PID)
+    # --- 8. 抓取診斷數據 (僅 -Diagnose 模式) ---
+    if ($Diagnose) {
+        Write-Host "正在抓取 heap histogram..."
         try {
             $gwPid = (jps -l | Select-String "WsApiApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
             if ($gwPid) {
@@ -310,17 +320,6 @@ try {
             }
         } catch {
             Write-Warning "jcmd 失敗: $($_.Exception.Message)"
-        }
-
-        # 內部指標
-        try {
-            $saturation = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/saturation" -ErrorAction Stop
-            $tps = Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/tps" -ErrorAction Stop
-            $saturation | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_saturation.json"
-            $tps | ConvertTo-Json -Depth 10 | Out-File "$log_path\internal_tps.json"
-            Write-Host "內部指標抓取成功"
-        } catch {
-            Write-Warning "抓取內部指標失敗: $($_.Exception.Message)"
         }
     }
 
