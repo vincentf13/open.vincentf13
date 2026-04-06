@@ -260,7 +260,7 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000",   # 6萬 orders/sec
         "30",      # 30秒測量
-        "60"       # 60秒預熱 (確保 ZGC Warmup cycles 在測量前完成)
+        "90"       # 90秒預熱 (確保 ZGC Warmup cycles 在測量前完成，觀察到 Warmup 在 ~77s 觸發)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
@@ -269,7 +269,7 @@ try {
 
     # --- Warmup 結束前重置內部指標 (排除 warmup 數據污染) ---
     $resetJob = Start-Job -ScriptBlock {
-        Start-Sleep -Seconds 58  # warmup 60s，提前 2s 重置
+        Start-Sleep -Seconds 88  # warmup 90s，提前 2s 重置
         try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/reset" -Method POST -ErrorAction Stop | Out-Null }
         catch { } # 靜默失敗
     }
