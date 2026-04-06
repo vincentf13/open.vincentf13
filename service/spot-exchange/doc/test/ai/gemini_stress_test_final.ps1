@@ -259,8 +259,7 @@ try {
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
     $preWarm.ProcessorAffinity = 3840
     $preWarm.WaitForExit()
-    Write-Host "Pre-warm 完成，等待 GC 穩定 (5s)..."
-    try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/gc" -Method POST -ErrorAction Stop | Out-Null } catch {}
+    Write-Host "Pre-warm 完成，等待穩定 (5s)..."
     Start-Sleep -Seconds 5
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
