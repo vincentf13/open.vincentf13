@@ -48,9 +48,11 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=8G
 -XX:+AlwaysPreTouch
-# Huge Pages (2MB TLB)：減少 TLB Miss，提升大量 mmap 存取效能。
-# 需 OS 配置：Windows「鎖定記憶體中的分頁」權限；Linux: vm.nr_hugepages
--XX:+UseLargePages
+# Large Pages 讓給 Gateway：Matching 的 order book working set 小且反覆存取，
+# TLB 壓力低；Gateway 的 Netty buffer pool + 多連線並行 heap 存取更散佈，
+# 受益較大。32GB 機器無法同時為兩個 4GB heap 分配大頁。
+# 注意：Large Pages 只影響 heap，不影響 Chronicle WAL (file-backed mmap 一律 4KB)。
+# -XX:+UseLargePages
 
 # --- 執行緒與排程優化 ---
 -XX:+UseThreadPriorities

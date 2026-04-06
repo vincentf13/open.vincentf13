@@ -184,15 +184,6 @@ try {
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 2.1 清空 Standby List (Maven/Jar 解壓後再清，避免建構過程重新佔用物理頁框) ---
-    Write-Host "正在清空 Standby List 以整合連續記憶體 (Large Pages)..."
-    if ([MemoryCompactor]::PurgeStandbyList()) {
-        Write-Host "Standby List 已清空，可用實體記憶體已最大化"
-    } else {
-        Write-Warning "無法清空 Standby List (需要管理員權限)，Large Pages 分配可能失敗"
-    }
-    Start-Sleep -Seconds 2
-
     # --- 3. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 61443) ---
     Write-Host "Starting Standalone Media Driver..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
@@ -233,14 +224,14 @@ try {
     $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    # --- 4.1 等待 Matching Engine 完成大頁分配，再清一次 Standby List ---
-    Write-Host "等待 Matching Engine 大頁分配穩定 (5s)..."
+    # --- 4.1 等待 Matching + Chronicle mlock 完成，清空 Standby List 為 Gateway 大頁騰空間 ---
+    Write-Host "等待 Matching Engine + Chronicle mlock 完成 (5s)..."
     Start-Sleep -Seconds 5
-    Write-Host "二次清空 Standby List (為 Gateway 騰出連續物理頁框)..."
+    Write-Host "清空 Standby List (為 Gateway Large Pages 整合連續 2MB 頁框)..."
     if ([MemoryCompactor]::PurgeStandbyList()) {
         Write-Host "Standby List 已清空"
     } else {
-        Write-Warning "無法清空 Standby List"
+        Write-Warning "無法清空 Standby List (需要管理員權限)，Gateway Large Pages 分配可能失敗"
     }
     Start-Sleep -Seconds 2
 
@@ -261,15 +252,6 @@ try {
 
     Write-Host "等待服務穩態 (20s)..."
     Start-Sleep -Seconds 20
-
-    # --- 5.1 三次清空 Standby List (為 Benchmark 騰出連續物理頁框) ---
-    Write-Host "三次清空 Standby List (為 Benchmark 騰出連續物理頁框)..."
-    if ([MemoryCompactor]::PurgeStandbyList()) {
-        Write-Host "Standby List 已清空"
-    } else {
-        Write-Warning "無法清空 Standby List"
-    }
-    Start-Sleep -Seconds 2
 
     # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
     Write-Host "Starting Java Benchmark (Cores 8-11)..."

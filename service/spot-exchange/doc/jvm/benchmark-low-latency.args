@@ -17,8 +17,8 @@
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:+AlwaysPreTouch
-# Huge Pages (2MB TLB)：啟動前由腳本清空 Standby List 確保有足夠連續頁框
--XX:+UseLargePages
+# Large Pages 由 Matching Engine 獨佔，32GB 機器無法再為額外 JVM 分配大頁
+# -XX:+UseLargePages
 -XX:ZAllocationSpikeTolerance=5.0
 -XX:MaxDirectMemorySize=1g
 

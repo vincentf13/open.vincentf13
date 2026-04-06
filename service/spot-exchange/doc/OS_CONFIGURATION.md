@@ -85,14 +85,15 @@ Disable-MMAgent -MemoryCompression  # 需重啟
 
 ---
 
-## 多 JVM 大頁分配策略
+## Large Pages 分配策略
 
-Windows 大頁分配是 **all-or-nothing**，且不像 Linux 有 `khugepaged` 背景合併。多 JVM 同時啟動時，先搶的鎖走連續頁框，後啟的碎片化失敗。
+`-XX:+UseLargePages` 只影響 **JVM heap / metaspace / code cache**。Chronicle WAL 的 file-backed mmap 在 Windows 上一律使用 4KB 頁，不受此參數影響。
 
-**解法**：每個 JVM 啟動前清一次 Standby List（三階段：EmptyWorkingSets → FlushModified → PurgeStandby）。
+32GB 機器上只有 **Gateway 啟用 Large Pages**：
+- Gateway：Netty buffer pool + 多連線並行 heap 存取較散佈，TLB miss 收益大
+- Matching Engine：order book working set 小且反覆存取，TLB 壓力本來就低
 
-| 時機 | 目的 |
-|------|------|
-| 編譯完成後，Matching 啟動前 | 清掉編譯快取碎片 |
-| Matching 啟動 5s 後，Gateway 啟動前 | 清掉 Matching 啟動碎片 |
-| 穩態 20s 後，Benchmark 啟動前 | 清掉穩態累積快取 |
+Windows 大頁分配是 **all-or-nothing**，且不會背景合併碎片。啟動順序：
+1. Matching Engine 先啟動（不用大頁）+ Chronicle mlock 完成
+2. **Standby List 三階段清理**（EmptyWorkingSets → FlushModified → PurgeStandby）
+3. Gateway 啟動，拿到乾淨的大頁池
