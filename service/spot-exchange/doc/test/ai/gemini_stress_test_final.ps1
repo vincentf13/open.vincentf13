@@ -237,12 +237,14 @@ try {
 
     # --- 5. 啟動 Gateway (WS-API) (4GB, P-Cores 3-7 + 共享 0,1,14,15 | Mask: 49403) ---
     Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7)..."
-    $gw_extra = @()
-    # -Diagnose 模式：開啟 PerfSharedMem 讓 jcmd 能連接 (覆蓋 args 裡的 +PerfDisableSharedMem)
-    if ($Diagnose) { $gw_extra += "-XX:-PerfDisableSharedMem" }
+    # -Diagnose 模式：生成臨時 args 檔去掉 PerfDisableSharedMem，讓 jcmd 能連接
+    $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
+    if ($Diagnose) {
+        $gw_args_file = "$log_path\ws-api-diagnose.args"
+        (Get-Content "$doc_path\jvm\ws-api-throughput.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $gw_args_file
+    }
     $gw_args = @(
-        "@$doc_path\jvm\ws-api-throughput.args"
-    ) + $gw_extra + @(
+        "@$gw_args_file",
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=3,4,5,6,7",
         "-Daeron.driver.enabled=false",

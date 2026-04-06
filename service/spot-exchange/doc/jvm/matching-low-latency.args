@@ -41,10 +41,11 @@
 # 關閉 ZGC 主動 GC：8GB heap + 低分配率下不需要 proactive cycle
 -XX:-ZProactive
 
-# --- 記憶體配置 (2GB Heap + 8GB Direct) ---
-# Matching heap 實際使用 ~1.3GB (32.8%)，2GB 足夠。省下的空間讓給 Gateway Large Pages。
--Xms2G
--Xmx2G
+# --- 記憶體配置 (4GB Heap + 8GB Direct) ---
+# 2GB 時 ZGC concurrent mark 的 L3 cache 污染導致 Matching p99 spike (100ms+)。
+# 4GB 給 ZGC 更大 headroom，減少 mark 頻率。
+-Xms4G
+-Xmx4G
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=8G
