@@ -5,6 +5,8 @@ import com.lmax.disruptor.RingBuffer;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import open.vincentf13.service.spot.infra.aeron.*;
 import open.vincentf13.service.spot.infra.aeron.AeronConstants.AeronState;
@@ -14,6 +16,8 @@ import open.vincentf13.service.spot.model.command.AbstractSbeModel;
 import open.vincentf13.service.spot.sbe.*;
 import open.vincentf13.service.spot.ws.wal.*;
 import org.agrona.MutableDirectBuffer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 import java.nio.ByteOrder;
 
@@ -21,15 +25,18 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 import static open.vincentf13.service.spot.infra.aeron.AeronUtil.*;
 
 /**
- * Gateway → Matching Engine 發送器基類
+ * Gateway → Matching Engine 發送器
  *
- * 封裝 Aeron 連線管理、SBE 編碼、RESUME 握手、Disruptor polling 等共用邏輯。
- * 子類只需實現事件處理策略：
- * - {@link WalSender}: WAL 持久化 + Aeron 發送 (生產模式)
- * - {@link BypassSender}: 跳過 WAL，Disruptor → Aeron 直送 (壓測模式)
+ * Bypass 模式 (預設，-Dspot.wal.bypass=true)：Disruptor → Aeron 直送，零 WAL 開銷。
+ * WAL 模式：由 {@link WalSender} 繼承並覆寫事件處理方法。
+ *
+ * Bypass 模式下此類直接作為 @Component 實例化（單一具體類，無繼承），
+ * 讓 JIT 能完整 inline 整條 doWork → processEvents → sendFromEvent 熱路徑。
  */
 @Slf4j
-public abstract class GatewaySender extends Worker {
+@Component
+@ConditionalOnProperty(name = "spot.wal.bypass", havingValue = "true")
+public class GatewaySender extends Worker {
 
     // ===== Disruptor =====
     protected final RingBuffer<WalEvent> ringBuffer;
@@ -59,9 +66,19 @@ public abstract class GatewaySender extends Worker {
     protected long localWriteCount;
     private long localBackPressure;
 
+    // ===== Bypass 模式狀態 =====
+    private long bypassSeq = 0;
+
     // ===== Diagnose =====
     protected static final boolean DIAGNOSE = Boolean.getBoolean("spot.diagnose");
     protected long sendDoneNs;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GatewaySender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
+        this("bypass-sender",
+             MetricsKey.CPU_ID_WAL_SENDER, MetricsKey.CPU_ID_CURRENT_WAL_SENDER,
+             MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE, ringBuffer);
+    }
 
     protected GatewaySender(String name, long cpuIdKey, long currentCpuIdKey, long dutyCycleKey,
                             RingBuffer<WalEvent> ringBuffer) {
@@ -71,6 +88,9 @@ public abstract class GatewaySender extends Worker {
         ringBuffer.addGatingSequences(poller.getSequence());
     }
 
+    @PostConstruct @Override public void start() { super.start(); }
+    @PreDestroy @Override public void stop() { super.stop(); }
+
     @Override
     protected void onStart() {
         this.publication = AeronUtil.aeron().addPublication(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
@@ -79,7 +99,7 @@ public abstract class GatewaySender extends Worker {
         log.info("[{}] 初始化完成", Thread.currentThread().getName());
     }
 
-    protected abstract void onSenderStart();
+    protected void onSenderStart() {}
 
     // ===== 主迴圈 =====
 
@@ -100,9 +120,36 @@ public abstract class GatewaySender extends Worker {
         return work;
     }
 
-    protected abstract int drainWhileWaiting();
+    // ===== Bypass: WAITING 丟棄 (防 Disruptor 堆積) =====
 
-    protected abstract int processEvents();
+    private final EventPoller.Handler<WalEvent> discardHandler = (event, sequence, endOfBatch) -> {
+        pollCount++;
+        return true;
+    };
+
+    protected int drainWhileWaiting() {
+        pollCount = 0;
+        try { poller.poll(discardHandler); } catch (Exception ignored) {}
+        return pollCount;
+    }
+
+    // ===== Bypass: SENDING Disruptor → Aeron 直送 =====
+
+    private final EventPoller.Handler<WalEvent> bypassHandler = (event, sequence, endOfBatch) -> {
+        long pollTimeNs = DIAGNOSE ? System.nanoTime() : 0;
+        sendFromEvent(event, ++bypassSeq);
+        StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+        if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
+        pollCount++;
+        return true;
+    };
+
+    protected int processEvents() {
+        pollCount = 0;
+        try { poller.poll(bypassHandler); } catch (Exception e) { log.error("[BYPASS-SENDER] failed", e); }
+        if (pollCount > 0) localWriteCount += pollCount;
+        return pollCount;
+    }
 
     // ===== RESUME 握手 =====
 
@@ -114,7 +161,10 @@ public abstract class GatewaySender extends Worker {
         }
     };
 
-    protected abstract void onResume(long walIndex);
+    protected void onResume(long walIndex) {
+        log.info("[BYPASS-SENDER] RESUME 握手成功，起始序號: {}", walIndex);
+        bypassSeq = (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE) ? 0 : walIndex;
+    }
 
     // ===== SBE 編碼 + Aeron 發送 =====
 
@@ -243,5 +293,7 @@ public abstract class GatewaySender extends Worker {
         log.info("[{}] 已停止", Thread.currentThread().getName());
     }
 
-    protected abstract void onSenderStop();
+    protected void onSenderStop() {
+        try { poller.poll(discardHandler); } catch (Exception ignored) {}
+    }
 }
