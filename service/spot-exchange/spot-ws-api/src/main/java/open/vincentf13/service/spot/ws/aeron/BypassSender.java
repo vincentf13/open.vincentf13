@@ -35,7 +35,7 @@ public class BypassSender extends GatewaySender {
     @PreDestroy @Override public void stop() { super.stop(); }
 
     @Override
-    protected void onSenderStart() {}
+    protected final void onSenderStart() {}
 
     // ===== WAITING：丟棄 (防 Disruptor 堆積) =====
 
@@ -45,7 +45,7 @@ public class BypassSender extends GatewaySender {
     };
 
     @Override
-    protected int drainWhileWaiting() {
+    protected final int drainWhileWaiting() {
         pollCount = 0;
         try { poller.poll(discardHandler); } catch (Exception ignored) {}
         return pollCount;
@@ -63,7 +63,7 @@ public class BypassSender extends GatewaySender {
     };
 
     @Override
-    protected int processEvents() {
+    protected final int processEvents() {
         pollCount = 0;
         try { poller.poll(bypassHandler); } catch (Exception e) { log.error("[BYPASS-SENDER] failed", e); }
         if (pollCount > 0) localWriteCount += pollCount;
@@ -73,13 +73,13 @@ public class BypassSender extends GatewaySender {
     // ===== RESUME =====
 
     @Override
-    protected void onResume(long walIndex) {
+    protected final void onResume(long walIndex) {
         log.info("[BYPASS-SENDER] RESUME 握手成功，起始序號: {}", walIndex);
         bypassSeq = (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE) ? 0 : walIndex;
     }
 
     @Override
-    protected void onSenderStop() {
+    protected final void onSenderStop() {
         try { poller.poll(discardHandler); } catch (Exception ignored) {}
     }
 }

@@ -49,7 +49,7 @@ public class WalSender extends GatewaySender {
     @PreDestroy @Override public void stop() { super.stop(); }
 
     @Override
-    protected void onSenderStart() {
+    protected final void onSenderStart() {
         PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.WAL_BASE_DIR));
         this.appender = wal.acquireAppender();
         this.replayTailer = wal.createTailer();
@@ -64,7 +64,7 @@ public class WalSender extends GatewaySender {
     };
 
     @Override
-    protected int drainWhileWaiting() {
+    protected final int drainWhileWaiting() {
         pollCount = 0;
         try { poller.poll(walOnlyHandler); } catch (Exception e) { log.error("[WAL-SENDER] WAL write failed", e); }
         if (pollCount > 0) localWriteCount += pollCount;
@@ -74,7 +74,7 @@ public class WalSender extends GatewaySender {
     // ===== SENDING =====
 
     @Override
-    protected int processEvents() {
+    protected final int processEvents() {
         if (replaying) {
             int work = replayFromWal();
             work += drainWhileWaiting();
@@ -162,7 +162,7 @@ public class WalSender extends GatewaySender {
     // ===== RESUME =====
 
     @Override
-    protected void onResume(long walIndex) {
+    protected final void onResume(long walIndex) {
         log.info("[WAL-SENDER] RESUME 握手成功，恢復位點: {}", walIndex);
         if (walIndex == WAL_INDEX_NONE || walIndex == MSG_SEQ_NONE || !replayTailer.moveToIndex(walIndex)) {
             replayTailer.toStart();
@@ -174,7 +174,7 @@ public class WalSender extends GatewaySender {
     }
 
     @Override
-    protected void onSenderStop() {
+    protected final void onSenderStop() {
         try { poller.poll(walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
     }
 }
