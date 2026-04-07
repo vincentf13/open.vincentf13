@@ -9,7 +9,7 @@ public class AeronConstants {
     public static final int METRICS_BATCH_SIZE = 5000;
 
     /** Aeron 訂閱輪詢限制 */
-    public static final int AERON_POLL_LIMIT = 256;
+    public static final int AERON_POLL_LIMIT = 1024;
 
     /** RESUME 握手信號的總長度 */
     public static final int RESUME_SIGNAL_LENGTH = 16;
