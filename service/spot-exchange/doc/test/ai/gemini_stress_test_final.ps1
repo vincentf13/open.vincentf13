@@ -216,9 +216,9 @@ try {
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱路徑在 P-core 0-5) ---
-    Write-Host "Starting Gateway (P-Cores 1-5: WalSender+Netty) + Matching Engine (P-Core 0)..."
+    Write-Host "Starting Gateway (P1:WalSender P2:ReportRecv P3-4:Netty) + Matching Engine (P-Core 0)..."
 
-    # Gateway: WalSender=P1, Netty=P2-P5, GC/JIT=E10-11+LP14-15
+    # Gateway: WalSender=P1, ReportReceiver=P2, Netty=P3-P4, GC/JIT=E10-11+LP14-15
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
     if ($Diagnose) {
@@ -230,7 +230,7 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,2,3,4,5",
+        "-Dspot.affinity.cores=1,2,3,4",
         "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -238,7 +238,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 52286  # P-core 1-5 (worker) + E-core 10,11 (GC) + LP 14,15 (GC)
+    $g.ProcessorAffinity = 52254  # P-core 1-4 (WalSender+ReportRecv+Netty) + E-core 10,11 (GC) + LP 14,15 (GC)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: Worker=P0, GC/JIT=E8-9+LP14-15
