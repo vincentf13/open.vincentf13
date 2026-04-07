@@ -198,7 +198,7 @@ try {
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=0",
+        "-Daeron.conductor.affinity=7",
         "-Daeron.sender.affinity=12",
         "-Daeron.receiver.affinity=13",
         "-Daeron.term.buffer.length=64m",
@@ -207,7 +207,7 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 61443
+    $driver.ProcessorAffinity = 61571  # 核心 0, 1, 7, 12, 13, 14, 15 (conductor 移至專屬 P-core 7)
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine ---

@@ -20,8 +20,6 @@ spring:
 
 aeron:
   dir: C:/iProject/open.vincentf13/data/spot-exchange/aeron
-  driver:
-    enabled: false
 
 state:
   base-dir: C:/iProject/open.vincentf13/data/spot-exchange/

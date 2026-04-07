@@ -146,8 +146,6 @@ public class Constants {
         public static final long MAX = 100L;
 
         // CPU ID 監測指標 (執行緒綁核追蹤) - 使用 1000+ 避開百分位數
-        public static final long CPU_ID_WAL_WRITER = 1001L;
-        public static final long CPU_ID_AERON_SENDER = 1002L;
         public static final long CPU_ID_AERON_RECEIVER = 1003L;
         public static final long CPU_ID_JVM_MANAGEMENT = 1005L;
         public static final long CPU_ID_NETTY_BOSS = 1006L;
@@ -156,13 +154,11 @@ public class Constants {
         public static final long CPU_ID_NETTY_WORKER_3 = 1010L;
         public static final long CPU_ID_NETTY_WORKER_4 = 1011L;
         public static final long CPU_ID_AERON_CONDUCTOR = 1009L;
-        public static final long CPU_ID_CURRENT_AERON_SENDER = 1012L;
         public static final long CPU_ID_CURRENT_AERON_RECEIVER = 1013L;
         public static final long CPU_ID_CURRENT_NETTY_BOSS = 1014L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_1 = 1015L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_2 = 1016L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_3 = 1017L;
-        public static final long CPU_ID_CURRENT_WAL_WRITER = 1019L;
         public static final long CPU_ID_REPORT_RECEIVER = 1020L;
         public static final long CPU_ID_CURRENT_REPORT_RECEIVER = 1021L;
         public static final long CPU_ID_CURRENT_NETTY_WORKER_4 = 1018L;
@@ -174,13 +170,7 @@ public class Constants {
         
         public static final long GATEWAY_JVM_USED_MB = 210L;
         public static final long GATEWAY_JVM_MAX_MB = 211L;
-        /** @deprecated 合併到 WalSender */
-        public static final long GATEWAY_AERON_SENDER_WORKER_DUTY_CYCLE = 212L;
         public static final long GATEWAY_REPORT_RECEIVER_DUTY_CYCLE = 214L;
-        /** @deprecated 改用 GATEWAY_WAL_SENDER_DUTY_CYCLE */
-        public static final long GATEWAY_WAL_WRITER_DUTY_CYCLE = 213L;
-
-        // WalSender (合併 WalWriter + AeronSender)
         public static final long GATEWAY_WAL_SENDER_DUTY_CYCLE = 215L;
         public static final long CPU_ID_WAL_SENDER = 1022L;
         public static final long CPU_ID_CURRENT_WAL_SENDER = 1023L;
