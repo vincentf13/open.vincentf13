@@ -49,6 +49,9 @@ public class Engine {
     private long pendingFlushSeq = MSG_SEQ_NONE;
     private long lastReceivedSeq = MSG_SEQ_NONE;
 
+    // 本地計數器：避免 per-message ConcurrentHashMap.computeIfAbsent + AtomicLong.addAndGet
+    private long localProcessedCount;
+
     // ========== 生命週期 ==========
 
     @PostConstruct
@@ -93,8 +96,15 @@ public class Engine {
     }
 
     public void onPollCycle(int done, long latestSeq) {
-        if (done == 0) return; // 空 poll：跳過 rotate + snapshot，加快 poll 迴圈
+        if (done == 0) return;
         lastReceivedSeq = latestSeq;
+        // flush 本地計數器（批次化，避免 per-message atomic ops）
+        if (localProcessedCount > 0) {
+            StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, localProcessedCount);
+            localProcessedCount = 0;
+        }
+        long bp = reporter.drainLocalBackpressure();
+        if (bp > 0) StaticMetricsHolder.addCounter(MetricsKey.MATCHING_REPORT_BACKPRESSURE, bp);
         rotateAll();
         prepareProgressSnap();
     }
@@ -124,7 +134,7 @@ public class Engine {
 
     private void recordMessageMetrics(int msgType, long arrivalTimeNs, long gatewayTimeNs, long endNs) {
         if (msgType != MsgType.ORDER_CREATE && msgType != MsgType.ORDER_CANCEL) return;
-        StaticMetricsHolder.addCounter(MetricsKey.ORDER_PROCESSED_COUNT, 1);
+        localProcessedCount++;
         StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_TRANSPORT, arrivalTimeNs - gatewayTimeNs);
         StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_MATCHING, endNs - arrivalTimeNs);
     }

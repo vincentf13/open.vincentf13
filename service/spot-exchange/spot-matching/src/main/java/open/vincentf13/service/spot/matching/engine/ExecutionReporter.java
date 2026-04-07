@@ -42,6 +42,7 @@ public class ExecutionReporter implements AutoCloseable {
     private final OrderMatchedEncoder matchedEncoder = new OrderMatchedEncoder();
 
     private long acceptedCount, rejectedCount, matchedCount, canceledCount;
+    private long localBackpressure;
 
     /** 最後一次 writeFrameHeader 的 nanoTime，Engine 用於計算 matching 延遲 */
     private long matchingEndNs;
@@ -160,6 +161,7 @@ public class ExecutionReporter implements AutoCloseable {
             }
             if (++spins > 10000) {
                 log.warn("Report send backpressure timeout after {} spins, dropping", spins);
+                localBackpressure += spins;
                 return false;
             }
             Thread.onSpinWait();
@@ -167,6 +169,13 @@ public class ExecutionReporter implements AutoCloseable {
     }
 
     public long getMatchingEndNs() { return matchingEndNs; }
+
+    /** 由 Engine.onPollCycle 批次 flush，避免 per-message atomic ops */
+    public long drainLocalBackpressure() {
+        long bp = localBackpressure;
+        localBackpressure = 0;
+        return bp;
+    }
 
     private void writeFrameHeader(MutableDirectBuffer buf, int off, int msgType) {
         buf.putInt(off, msgType, ByteOrder.LITTLE_ENDIAN);
