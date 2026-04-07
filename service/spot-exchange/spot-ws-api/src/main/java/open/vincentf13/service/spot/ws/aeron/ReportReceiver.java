@@ -157,16 +157,26 @@ public class ReportReceiver extends Worker {
             return;
         }
 
-        // 多 Channel 路徑：逐條 writeAndFlush
+        // 多 Channel 路徑：按 Channel 分組批次寫入，大幅降低 flush 與系統調用次數
+        java.util.HashMap<Channel, java.util.ArrayList<ByteBuf>> grouped = new java.util.HashMap<>();
         for (int i = 0; i < count; i++) {
             Channel ch = batchChannels[i];
             ByteBuf buf = batchBufs[i];
-            if (ch.isActive()) {
-                ch.eventLoop().execute(() -> ch.writeAndFlush(new BinaryWebSocketFrame(buf)));
-            } else {
+            if (ch != null && ch.isActive()) {
+                grouped.computeIfAbsent(ch, k -> new java.util.ArrayList<>()).add(buf);
+            } else if (buf != null) {
                 buf.release();
             }
         }
+
+        grouped.forEach((ch, bufs) -> {
+            ch.eventLoop().execute(() -> {
+                for (int i = 0, size = bufs.size(); i < size; i++) {
+                    ch.write(new BinaryWebSocketFrame(bufs.get(i)));
+                }
+                ch.flush();
+            });
+        });
         clearRefs(count);
     }
 
