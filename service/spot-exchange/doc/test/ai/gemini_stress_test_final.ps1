@@ -184,8 +184,13 @@ try {
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 3. 啟動 獨立式 Media Driver (專屬 12, 13 + 共享 0, 1, 14, 15 | Mask: 61443) ---
-    Write-Host "Starting Standalone Media Driver..."
+    # --- 3. 啟動 獨立式 Media Driver (E-core cluster 1: 6,7,8,9 + LP: 14,15) ---
+    # Intel Core Ultra 9 285H 核心拓撲：
+    #   P-core 0-5 (Lion Cove, 3MB L2/core, 共享 24MB L3)
+    #   E-core 6-9 (Skymont cluster 1, 共享 4MB L2)
+    #   E-core 10-13 (Skymont cluster 2, 共享 4MB L2)
+    #   LP E-core 14-15 (共享 2MB L2)
+    Write-Host "Starting Standalone Media Driver (E-cores 6,7,9)..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -198,22 +203,22 @@ try {
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=7",
-        "-Daeron.sender.affinity=12",
-        "-Daeron.receiver.affinity=13",
+        "-Daeron.conductor.affinity=9",
+        "-Daeron.sender.affinity=6",
+        "-Daeron.receiver.affinity=7",
         "-Daeron.term.buffer.length=64m",
         "-Daeron.ipc.term.buffer.length=256m",
         "-Daeron.dir=$aeron_dir",
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 61571  # 核心 0, 1, 7, 12, 13, 14, 15 (conductor 移至專屬 P-core 7)
+    $driver.ProcessorAffinity = 50112  # E-core 6,7,8,9 + LP 14,15 (IPC 模式下不在熱路徑)
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 4. 併行啟動 Gateway + Matching Engine ---
-    Write-Host "Starting Gateway (WS-API) (4GB, P-Cores 3-7) + Matching Engine (4GB, P-Core 2)..."
+    # --- 4. 併行啟動 Gateway + Matching Engine (全熱路徑在 P-core 0-5) ---
+    Write-Host "Starting Gateway (P-Cores 1-5: WalSender+Netty) + Matching Engine (P-Core 0)..."
 
-    # Gateway
+    # Gateway: WalSender=P1, Netty=P2-P5, GC/JIT=E10-11+LP14-15
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
     if ($Diagnose) {
@@ -225,7 +230,7 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=3,4,5,6",
+        "-Dspot.affinity.cores=1,2,3,4,5",
         "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -233,20 +238,20 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 49275 # 核心 3-6 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
+    $g.ProcessorAffinity = 52286  # P-core 1-5 (worker) + E-core 10,11 (GC) + LP 14,15 (GC)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    # Matching Engine
+    # Matching Engine: Worker=P0, GC/JIT=E8-9+LP14-15
     $matching_args = @(
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Dspot.affinity.cores=2",
+        "-Dspot.affinity.cores=0",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49159 # 核心 2 (worker) + 共享 0, 1, 14, 15 (GC/JIT)
+    $e.ProcessorAffinity = 49921  # P-core 0 (worker) + E-core 8,9 (GC) + LP 14,15 (GC)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務啟動 (20s)..."
@@ -260,13 +265,13 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000", "1", "25"
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
-    $preWarm.ProcessorAffinity = 3840
+    $preWarm.ProcessorAffinity = 15360  # E-core 10,11,12,13 (不搶 P-core 熱路徑)
     $preWarm.WaitForExit()
     Write-Host "Pre-warm 完成，等待穩定 (5s)..."
     Start-Sleep -Seconds 5
 
-    # --- 6. 啟動 Java Benchmark (與核心 8-11 綁定，避免搶佔 2-7) ---
-    Write-Host "Starting Java Benchmark (Cores 8-11)..."
+    # --- 6. 啟動 Java Benchmark (E-core cluster 2: 10-13，避免搶佔 P-core 0-5) ---
+    Write-Host "Starting Java Benchmark (E-Cores 10-13)..."
     $bench_args = @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
@@ -276,7 +281,7 @@ try {
         "60"       # 60秒預熱 (ZGC Warmup 已在 pre-warm 階段完成)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
-    $bench.ProcessorAffinity = 3840 # 核心 8, 9, 10, 11
+    $bench.ProcessorAffinity = 15360 # E-core 10,11,12,13 (cluster 2)
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 
@@ -296,11 +301,11 @@ try {
             param($logFile)
             while($true) {
                 $timestamp = Get-Date -Format "HH:mm:ss"
-                $int = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
-                $dpc = (Get-Counter "\Processor(*)\% DPC Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
-                $priv = (Get-Counter "\Processor(*)\% Privileged Time").CounterSamples | Where-Object { $_.InstanceName -match "^[2-6]$" }
+                $int = (Get-Counter "\Processor(*)\% Interrupt Time").CounterSamples | Where-Object { $_.InstanceName -match "^[0-5]$" }
+                $dpc = (Get-Counter "\Processor(*)\% DPC Time").CounterSamples | Where-Object { $_.InstanceName -match "^[0-5]$" }
+                $priv = (Get-Counter "\Processor(*)\% Privileged Time").CounterSamples | Where-Object { $_.InstanceName -match "^[0-5]$" }
                 $cs = (Get-Counter "\System\Context Switches/sec").CounterSamples[0].CookedValue
-                foreach($core in @("2","3","4","5","6")) {
+                foreach($core in @("0","1","2","3","4","5")) {
                     $i = ($int | Where-Object { $_.InstanceName -eq $core }).CookedValue
                     $d = ($dpc | Where-Object { $_.InstanceName -eq $core }).CookedValue
                     $p = ($priv | Where-Object { $_.InstanceName -eq $core }).CookedValue
