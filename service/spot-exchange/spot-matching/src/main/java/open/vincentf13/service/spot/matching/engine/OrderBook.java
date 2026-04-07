@@ -15,6 +15,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.LongComparator;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
@@ -68,24 +69,26 @@ public class OrderBook {
     private final ChronicleMap<LongValue, Boolean> activeDisk = Storage.self().activeOrders();
     private final ChronicleMap<LongValue, Trade> tradesDisk = Storage.self().trades();
 
-    // 批次寫入緩衝（雙緩衝：matching 寫 active，flusher 讀 draining）
-    private final Long2ObjectHashMap<Order> ordersBufA = new Long2ObjectHashMap<>(65536, 0.5f);
-    private final Long2ObjectHashMap<Order> ordersBufB = new Long2ObjectHashMap<>(65536, 0.5f);
-    private final Long2ObjectHashMap<Trade> tradesBufA = new Long2ObjectHashMap<>(65536, 0.5f);
-    private final Long2ObjectHashMap<Trade> tradesBufB = new Long2ObjectHashMap<>(65536, 0.5f);
-    private final LongHashSet addsBufA = new LongHashSet(32768), addsBufB = new LongHashSet(32768);
-    private final LongHashSet removalsBufA = new LongHashSet(32768), removalsBufB = new LongHashSet(32768);
+    // 批次寫入緩衝（雙緩衝：matching 寫 active，flusher 讀 draining，改為 List 消除 Hash Cache Miss）
+    private final ArrayList<Order> ordersBufA = new ArrayList<>(65536);
+    private final ArrayList<Order> ordersBufB = new ArrayList<>(65536);
+    private final ArrayList<Trade> tradesBufA = new ArrayList<>(65536);
+    private final ArrayList<Trade> tradesBufB = new ArrayList<>(65536);
+    private final it.unimi.dsi.fastutil.longs.LongArrayList addsBufA = new it.unimi.dsi.fastutil.longs.LongArrayList(32768);
+    private final it.unimi.dsi.fastutil.longs.LongArrayList addsBufB = new it.unimi.dsi.fastutil.longs.LongArrayList(32768);
+    private final it.unimi.dsi.fastutil.longs.LongArrayList removalsBufA = new it.unimi.dsi.fastutil.longs.LongArrayList(32768);
+    private final it.unimi.dsi.fastutil.longs.LongArrayList removalsBufB = new it.unimi.dsi.fastutil.longs.LongArrayList(32768);
 
-    private Long2ObjectHashMap<Order> activeOrders = ordersBufA;
-    private Long2ObjectHashMap<Trade> activeTrades = tradesBufA;
-    private LongHashSet activeAdds = addsBufA;
-    private LongHashSet activeRemovals = removalsBufA;
+    private ArrayList<Order> activeOrders = ordersBufA;
+    private ArrayList<Trade> activeTrades = tradesBufA;
+    private it.unimi.dsi.fastutil.longs.LongArrayList activeAdds = addsBufA;
+    private it.unimi.dsi.fastutil.longs.LongArrayList activeRemovals = removalsBufA;
 
     // volatile：matching 發布 draining 指針給 flusher 讀取
-    private volatile Long2ObjectHashMap<Order> drainingOrders = null;
-    private volatile Long2ObjectHashMap<Trade> drainingTrades = null;
-    private volatile LongHashSet drainingAdds = null;
-    private volatile LongHashSet drainingRemovals = null;
+    private volatile ArrayList<Order> drainingOrders = null;
+    private volatile ArrayList<Trade> drainingTrades = null;
+    private volatile it.unimi.dsi.fastutil.longs.LongArrayList drainingAdds = null;
+    private volatile it.unimi.dsi.fastutil.longs.LongArrayList drainingRemovals = null;
 
     // 每-緩衝 snap 物件池（零分配重用）
     // 設計：每個緩衝在 active 時由 matching thread 借取；成為 draining 後由 flusher thread 獨佔寫回。
@@ -182,7 +185,7 @@ public class OrderBook {
             if (t == null) t = new Trade();
             t.setTradeId(progress.nextTradeId()); t.setOrderId(maker.getOrderId());
             t.setPrice(price); t.setQty(matchQty); t.setTime(timestamp); t.setLastSeq(gwSeq);
-            activeTrades.put(t.getTradeId(), t);
+            activeTrades.add(t);
 
             maker.setFilled(maker.getFilled() + matchQty);
             taker.setFilled(taker.getFilled() + matchQty);
@@ -240,17 +243,14 @@ public class OrderBook {
         }
         o.setVersion(o.getVersion() + 1);
         o.setLastSeq(gwSeq);
-        if (o.getStatus() != OrderStatus.CANCELED.value()) o.validateState();
-        // 深拷貝快照：切斷 matching 對 o 的後續 mutation 與 flusher 讀取的 race，
-        // 避免撕裂寫入導致磁碟上出現 "NEW order with filled>0" 這類無法 validateState 的狀態。
-        // snap 物件從 active 緩衝專屬 pool 借取，歸還由 flusher 在 drainToDisk 中完成。
+        // 深拷貝快照：追加到 array list 讓 flusher 依序重播（取代原先的 Hash 去重）
         ArrayDeque<Order> pool = (activeOrders == ordersBufA) ? orderSnapPoolA : orderSnapPoolB;
         Order snap = pool.pollFirst();
         if (snap == null) snap = new Order();
         snap.copyFrom(o);
-        activeOrders.put(o.getOrderId(), snap);
-        if (!o.isTerminal()) { activeAdds.add(o.getOrderId()); activeRemovals.remove(o.getOrderId()); }
-        else { activeRemovals.add(o.getOrderId()); activeAdds.remove(o.getOrderId()); }
+        activeOrders.add(snap);
+        if (!o.isTerminal()) { activeAdds.add(o.getOrderId()); }
+        else { activeRemovals.add(o.getOrderId()); }
     }
 
     private void cleanupEmptyLevel(long price, Long2ObjectRBTreeMap<Deque<Order>> counters,
@@ -271,10 +271,10 @@ public class OrderBook {
         if (activeOrders.isEmpty() && activeTrades.isEmpty()
                 && activeAdds.isEmpty() && activeRemovals.isEmpty()) return false;
         // 先儲存 active 引用
-        Long2ObjectHashMap<Order> wO = activeOrders;
-        Long2ObjectHashMap<Trade> wT = activeTrades;
-        LongHashSet wAdd = activeAdds;
-        LongHashSet wRem = activeRemovals;
+        ArrayList<Order> wO = activeOrders;
+        ArrayList<Trade> wT = activeTrades;
+        it.unimi.dsi.fastutil.longs.LongArrayList wAdd = activeAdds;
+        it.unimi.dsi.fastutil.longs.LongArrayList wRem = activeRemovals;
         // 翻轉 active 至另一組緩衝
         activeOrders = (wO == ordersBufA) ? ordersBufB : ordersBufA;
         activeTrades = (wT == tradesBufA) ? tradesBufB : tradesBufA;
@@ -290,37 +290,45 @@ public class OrderBook {
 
     /** flusher thread 呼叫：將 draining 緩衝寫入 ChronicleMap，完成後釋放 */
     public void drainToDisk() {
-        Long2ObjectHashMap<Order> dO = drainingOrders;
+        ArrayList<Order> dO = drainingOrders;
         if (dO == null) return;  // 無待落盤資料
-        Long2ObjectHashMap<Trade> dT = drainingTrades;
-        LongHashSet dAdd = drainingAdds;
-        LongHashSet dRem = drainingRemovals;
+        ArrayList<Trade> dT = drainingTrades;
+        it.unimi.dsi.fastutil.longs.LongArrayList dAdd = drainingAdds;
+        it.unimi.dsi.fastutil.longs.LongArrayList dRem = drainingRemovals;
 
         // 歸還目標 pool（draining 緩衝專屬，與 active 隔離）
         ArrayDeque<Order> retOrderPool = (dO == ordersBufA) ? orderSnapPoolA : orderSnapPoolB;
         ArrayDeque<Trade> retTradePool = (dT == tradesBufA) ? tradePoolA : tradePoolB;
         if (!dO.isEmpty()) {
-            dO.forEach((id, o) -> {
-                fkO.set(id);
+            for (int i = 0, size = dO.size(); i < size; i++) {
+                Order o = dO.get(i);
+                fkO.set(o.getOrderId());
                 ordersDisk.put(fkO, o);
                 retOrderPool.addLast(o);
-            });
+            }
             dO.clear();
         }
         if (!dT.isEmpty()) {
-            dT.forEach((id, t) -> {
-                fkT.set(id);
+            for (int i = 0, size = dT.size(); i < size; i++) {
+                Trade t = dT.get(i);
+                fkT.set(t.getTradeId());
                 tradesDisk.put(fkT, t);
                 retTradePool.addLast(t);
-            });
+            }
             dT.clear();
         }
         if (!dAdd.isEmpty()) {
-            dAdd.forEach(id -> { fkA.set(id); activeDisk.put(fkA, Boolean.TRUE); });
+            for (int i = 0, size = dAdd.size(); i < size; i++) {
+                fkA.set(dAdd.getLong(i));
+                activeDisk.put(fkA, Boolean.TRUE);
+            }
             dAdd.clear();
         }
         if (!dRem.isEmpty()) {
-            dRem.forEach(id -> { fkA.set(id); activeDisk.remove(fkA); });
+            for (int i = 0, size = dRem.size(); i < size; i++) {
+                fkA.set(dRem.getLong(i));
+                activeDisk.remove(fkA);
+            }
             dRem.clear();
         }
         // 釋放順序與 rotate 相反：先清其他，最後清 orders（發布給 matching 下一輪 rotate）
