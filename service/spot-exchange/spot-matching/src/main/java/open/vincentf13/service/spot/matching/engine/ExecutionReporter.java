@@ -131,16 +131,21 @@ public class ExecutionReporter implements AutoCloseable {
             .filledQty(curFilledQty).clientOrderId(curClientOrderId);
     }
 
-    /** Batch: 一次 claim 寫入 taker + maker 兩個 match report */
+    /** Batch: 一次 claim 寫入 taker + maker 兩個 match report，共用單次 nanoTime */
     private void fillMatchBatch(MutableDirectBuffer buf, int off) {
-        writeFrameHeader(buf, off, MsgType.ORDER_MATCHED);
+        matchingEndNs = System.nanoTime();
+        // taker report
+        buf.putInt(off, MsgType.ORDER_MATCHED, ByteOrder.LITTLE_ENDIAN);
+        buf.putLong(off + 4, matchingEndNs, ByteOrder.LITTLE_ENDIAN);
         matchedEncoder.wrapAndApplyHeader(buf, off + SBE_HEADER_OFFSET, headerEncoder)
             .timestamp(matchingEndNs).userId(curTakerUserId).orderId(curTakerOrderId)
             .status(OrderStatus.get(curTakerStatus))
             .lastPrice(curTradePrice).lastQty(curTradeQty).cumQty(curTakerCumQty)
             .avgPrice(curTradePrice).clientOrderId(curTakerClientOrderId);
+        // maker report (共用同一個 matchingEndNs，省 1 次 System.nanoTime + RDTSC pipeline stall)
         int off2 = off + MATCH_SINGLE_LEN;
-        writeFrameHeader(buf, off2, MsgType.ORDER_MATCHED);
+        buf.putInt(off2, MsgType.ORDER_MATCHED, ByteOrder.LITTLE_ENDIAN);
+        buf.putLong(off2 + 4, matchingEndNs, ByteOrder.LITTLE_ENDIAN);
         matchedEncoder.wrapAndApplyHeader(buf, off2 + SBE_HEADER_OFFSET, headerEncoder)
             .timestamp(matchingEndNs).userId(curMakerUserId).orderId(curMakerOrderId)
             .status(OrderStatus.get(curMakerStatus))
