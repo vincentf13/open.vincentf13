@@ -49,6 +49,11 @@ public class ReportReceiver extends Worker {
     private final ByteBuf[] batchBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2];
     private int batchCount = 0;
 
+    // 多 Channel 分組用預分配結構（零分配 GC 友善）
+    private final Channel[] uniqueChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
+    private final int[] channelCounts = new int[AeronConstants.AERON_POLL_LIMIT * 2];
+    private final ByteBuf[][] channelBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2][AeronConstants.AERON_POLL_LIMIT * 2];
+
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
         super("report-receiver",
               MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER,
@@ -157,26 +162,47 @@ public class ReportReceiver extends Worker {
             return;
         }
 
-        // 多 Channel 路徑：按 Channel 分組批次寫入，大幅降低 flush 與系統調用次數
-        java.util.HashMap<Channel, java.util.ArrayList<ByteBuf>> grouped = new java.util.HashMap<>();
+        // 多 Channel 路徑：使用預分配陣列按 Channel 分組批次寫入，實現零分配 (Zero Allocation) GC 友善
+        int uniqueCount = 0;
         for (int i = 0; i < count; i++) {
             Channel ch = batchChannels[i];
             ByteBuf buf = batchBufs[i];
-            if (ch != null && ch.isActive()) {
-                grouped.computeIfAbsent(ch, k -> new java.util.ArrayList<>()).add(buf);
-            } else if (buf != null) {
-                buf.release();
+            if (ch == null || !ch.isActive()) {
+                if (buf != null) buf.release();
+                continue;
             }
+
+            int idx = -1;
+            for (int j = 0; j < uniqueCount; j++) {
+                if (uniqueChannels[j] == ch) { idx = j; break; }
+            }
+            if (idx == -1) {
+                idx = uniqueCount++;
+                uniqueChannels[idx] = ch;
+                channelCounts[idx] = 0;
+            }
+            channelBufs[idx][channelCounts[idx]++] = buf;
         }
 
-        grouped.forEach((ch, bufs) -> {
+        for (int i = 0; i < uniqueCount; i++) {
+            Channel ch = uniqueChannels[i];
+            int chCount = channelCounts[i];
+            
+            // 將批次封包複製給獨立的陣列供異步 EventLoop 使用 (唯一必要的最小分配)
+            ByteBuf[] bufs = new ByteBuf[chCount];
+            System.arraycopy(channelBufs[i], 0, bufs, 0, chCount);
+            
             ch.eventLoop().execute(() -> {
-                for (int i = 0, size = bufs.size(); i < size; i++) {
-                    ch.write(new BinaryWebSocketFrame(bufs.get(i)));
+                for (int j = 0; j < chCount; j++) {
+                    ch.write(new BinaryWebSocketFrame(bufs[j]));
                 }
                 ch.flush();
             });
-        });
+
+            // 清理這輪的參照，避免記憶體洩漏
+            uniqueChannels[i] = null;
+            for (int j = 0; j < chCount; j++) channelBufs[i][j] = null;
+        }
         clearRefs(count);
     }
 
