@@ -184,13 +184,14 @@ try {
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 3. 啟動 獨立式 Media Driver (E-core cluster 1: 6,7,8,9 + LP: 14,15) ---
+    # --- 3. 啟動 獨立式 Media Driver (conductor=P5, sender/receiver=E6,7) ---
     # Intel Core Ultra 9 285H 核心拓撲：
     #   P-core 0-5 (Lion Cove, 3MB L2/core, 共享 24MB L3)
     #   E-core 6-9 (Skymont cluster 1, 共享 4MB L2)
     #   E-core 10-13 (Skymont cluster 2, 共享 4MB L2)
     #   LP E-core 14-15 (共享 2MB L2)
-    Write-Host "Starting Standalone Media Driver (E-cores 6,7,9)..."
+    # Conductor 管理 publication position counter，影響 tryClaim 尾端延遲，需要 P-core。
+    Write-Host "Starting Standalone Media Driver (P5:conductor, E6:sender, E7:receiver)..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -203,7 +204,7 @@ try {
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=9",
+        "-Daeron.conductor.affinity=5",
         "-Daeron.sender.affinity=6",
         "-Daeron.receiver.affinity=7",
         "-Daeron.term.buffer.length=64m",
@@ -212,7 +213,7 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 50112  # E-core 6,7,8,9 + LP 14,15 (IPC 模式下不在熱路徑)
+    $driver.ProcessorAffinity = 50208  # P-core 5 + E-core 6,7,8,9 + LP 14,15
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱路徑在 P-core 0-5) ---

@@ -76,9 +76,38 @@ public class ReportReceiver extends Worker {
     }
 
     private static final int MATCHING_END_NS_OFFSET = 4; // report header offset 4-11: T_send nanoTime
+    private static final int REPORT_HEADER_SIZE = 20;   // ExecutionReporter.HEADER_SIZE
+
+    // 單個 report 長度查表（HEADER_SIZE + SBE BLOCK_LENGTH，引用 SBE 生成常數避免硬編碼錯誤）
+    private static final int ACCEPTED_LEN = REPORT_HEADER_SIZE + OrderAcceptedEncoder.BLOCK_LENGTH;  // 20+32=52
+    private static final int REJECTED_LEN = REPORT_HEADER_SIZE + OrderRejectedEncoder.BLOCK_LENGTH;  // 20+24=44
+    private static final int MATCHED_LEN  = REPORT_HEADER_SIZE + OrderMatchedEncoder.BLOCK_LENGTH;   // 20+65=85
+    private static final int CANCELED_LEN = REPORT_HEADER_SIZE + OrderCanceledEncoder.BLOCK_LENGTH;  // 20+40=60
 
     private void onReport(DirectBuffer buffer, int offset, int length, Header header) {
-        if (length < USER_ID_OFFSET + 8) return;
+        // 支援 batch message：一個 Aeron fragment 可能包含多個 report（match taker + maker）
+        int pos = offset;
+        int end = offset + length;
+        while (pos + REPORT_HEADER_SIZE <= end) {
+            int reportLen = getSingleReportLength(buffer, pos);
+            if (pos + reportLen > end || reportLen < USER_ID_OFFSET + 8) break;
+            processOneReport(buffer, pos, reportLen);
+            pos += reportLen;
+        }
+    }
+
+    private static int getSingleReportLength(DirectBuffer buffer, int pos) {
+        int msgType = buffer.getInt(pos, ByteOrder.LITTLE_ENDIAN);
+        return switch (msgType) {
+            case MsgType.ORDER_ACCEPTED -> ACCEPTED_LEN;
+            case MsgType.ORDER_REJECTED -> REJECTED_LEN;
+            case MsgType.ORDER_MATCHED  -> MATCHED_LEN;
+            case MsgType.ORDER_CANCELED -> CANCELED_LEN;
+            default -> Integer.MAX_VALUE; // 未知類型，停止解析
+        };
+    }
+
+    private void processOneReport(DirectBuffer buffer, int offset, int length) {
         long userId = buffer.getLong(offset + USER_ID_OFFSET, ByteOrder.LITTLE_ENDIAN);
         long matchingSendNs = buffer.getLong(offset + MATCHING_END_NS_OFFSET, ByteOrder.LITTLE_ENDIAN);
         StaticMetricsHolder.addCounter(MetricsKey.REPORT_RECV_COUNT, 1);
