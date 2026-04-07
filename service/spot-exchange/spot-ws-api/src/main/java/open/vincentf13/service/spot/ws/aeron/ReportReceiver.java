@@ -44,9 +44,9 @@ public class ReportReceiver extends Worker {
     private Subscription subscription;
     private FragmentAssembler assembler;
 
-    // 預分配批次陣列，避免 per-message 的 ArrayList/record 分配
-    private final Channel[] batchChannels = new Channel[AeronConstants.AERON_POLL_LIMIT];
-    private final ByteBuf[] batchBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT];
+    // 預分配批次陣列：×2 因為 batch match 每個 fragment 拆成 taker+maker 兩筆 report
+    private final Channel[] batchChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
+    private final ByteBuf[] batchBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2];
     private int batchCount = 0;
 
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
