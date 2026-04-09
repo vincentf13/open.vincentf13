@@ -252,7 +252,6 @@ public class TestVerificationController {
     private String dutyKeyToLabel(long dutyKey) {
         if (dutyKey == MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE) return "matching_receiver";
         if (dutyKey == MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE) return "gateway_wal_sender";
-        if (dutyKey == MetricsKey.GATEWAY_AERON_SENDER_DUTY_CYCLE) return "gateway_aeron_sender";
         if (dutyKey == MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE) return "gateway_report_receiver";
         return null;
     }

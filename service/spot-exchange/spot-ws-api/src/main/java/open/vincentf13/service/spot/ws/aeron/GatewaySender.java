@@ -81,10 +81,10 @@ public class GatewaySender extends Worker {
     }
 
     protected GatewaySender(String name, long cpuIdKey, long currentCpuIdKey, long dutyCycleKey,
-                            RingBuffer<WalEvent> ringBuffer, com.lmax.disruptor.Sequence... gatingSequences) {
+                            RingBuffer<WalEvent> ringBuffer) {
         super(name, cpuIdKey, currentCpuIdKey, dutyCycleKey);
         this.ringBuffer = ringBuffer;
-        this.poller = ringBuffer.newPoller(gatingSequences);
+        this.poller = ringBuffer.newPoller();
         ringBuffer.addGatingSequences(poller.getSequence());
     }
 
