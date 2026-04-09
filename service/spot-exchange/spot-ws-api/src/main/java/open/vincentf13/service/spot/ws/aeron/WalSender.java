@@ -64,33 +64,17 @@ public class WalSender extends GatewaySender {
     }
 
     /**
-     * 背景 pretouch daemon：每 50ms 掃描 WAL 目錄，對新增頁面執行預讀取，
-     * 將 page fault 成本從 WalSender 熱路徑轉移到背景冷路徑。
+     * 背景 pretouch daemon：使用 Chronicle Queue 原生的 pretouch()，
+     * 避免使用 FileChannel.map 導致 Windows 上的鎖競爭。
      */
     private void startPreTouchDaemon() {
-        File walDir = new File(ChronicleMapEnum.WAL_BASE_DIR
-                + ChronicleQueueEnum.CLIENT_TO_GW.getPath());
         preTouchDaemon = Thread.ofPlatform().daemon().name("wal-pretouch").start(() -> {
-            long lastTouchedSize = 0;
-            String lastFileName = null;
+            ExcerptAppender pretouchAppender = wal.acquireAppender();
             while (running.get()) {
                 try { Thread.sleep(50); } catch (InterruptedException e) { break; }
-                File[] files = walDir.listFiles((d, name) -> name.endsWith(".cq4"));
-                if (files == null || files.length == 0) continue;
-                File latest = files[files.length - 1];
-                String name = latest.getName();
-                long size = latest.length();
-                // 檔案切換時重置追蹤
-                if (!name.equals(lastFileName)) { lastTouchedSize = 0; lastFileName = name; }
-                if (size <= lastTouchedSize) continue;
-                // 只觸摸尚未 fault 的新頁面
-                try (FileChannel ch = FileChannel.open(latest.toPath(), StandardOpenOption.READ)) {
-                    long from = lastTouchedSize;
-                    long chunkSize = size - from;
-                    MappedByteBuffer buf = ch.map(FileChannel.MapMode.READ_ONLY, from, chunkSize);
-                    for (int i = 0; i < (int) chunkSize; i += 4096) { buf.get(i); }
-                } catch (IOException ignored) {}
-                lastTouchedSize = size;
+                try {
+                    pretouchAppender.pretouch();
+                } catch (Exception ignored) {}
             }
         });
     }
