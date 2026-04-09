@@ -58,12 +58,12 @@ public class Storage {
             this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 32);
             
             // 重要：這些 Map 如果在 Windows 上被多個 Java 進程同時訪問且沒有設置正確的 entries 空間，會拋出 Exception
-            this.latestMetrics = createMap("metrics-latest", Long.class, Long.class, 4096, 8, 8);
-            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 3600, 8, 8);
-            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 3600, 8, 8);
-            this.dutyCycleHistory = createMap("metrics-duty-cycle-history", Long.class, Long.class, 3600, 8, 8);
-            this.counterHistory = createMap("metrics-counter-history", Long.class, Long.class, 3600, 8, 8);
-            this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 2048, 8, 256);
+            this.latestMetrics = createMap("metrics-latest", Long.class, Long.class, 8192, 8, 8);
+            this.tpsHistory = createMap("metrics-tps-history", Long.class, Long.class, 86400, 8, 8);
+            this.latencyHistory = createMap("metrics-latency-history", Long.class, Long.class, 86400, 8, 8);
+            this.dutyCycleHistory = createMap("metrics-duty-cycle-history", Long.class, Long.class, 86400, 8, 8);
+            this.counterHistory = createMap("metrics-counter-history", Long.class, Long.class, 86400, 8, 8);
+            this.gcEventHistory = createMap("metrics-gc-event-history", Long.class, String.class, 4096, 8, 256);
             
             this.gatewaySenderWal = createQueue(ChronicleQueueEnum.CLIENT_TO_GW);
 
