@@ -18,6 +18,12 @@ import open.vincentf13.service.spot.ws.wal.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
+
 import static open.vincentf13.service.spot.infra.Constants.*;
 
 /**
@@ -37,6 +43,7 @@ public class WalSender extends GatewaySender {
     private ExcerptTailer replayTailer;
     private long resumeSkipIndex = Long.MIN_VALUE;
     private boolean replaying = false;
+    private Thread preTouchDaemon;
 
     public WalSender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
         super("wal-sender",
@@ -50,9 +57,42 @@ public class WalSender extends GatewaySender {
 
     @Override
     protected final void onSenderStart() {
-        PreTouchUtil.touchDirectory(new java.io.File(ChronicleMapEnum.WAL_BASE_DIR));
+        PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.WAL_BASE_DIR));
         this.appender = wal.acquireAppender();
         this.replayTailer = wal.createTailer();
+        startPreTouchDaemon();
+    }
+
+    /**
+     * 背景 pretouch daemon：每 50ms 掃描 WAL 目錄，對新增頁面執行預讀取，
+     * 將 page fault 成本從 WalSender 熱路徑轉移到背景冷路徑。
+     */
+    private void startPreTouchDaemon() {
+        File walDir = new File(ChronicleMapEnum.WAL_BASE_DIR
+                + ChronicleQueueEnum.CLIENT_TO_GW.getPath());
+        preTouchDaemon = Thread.ofPlatform().daemon().name("wal-pretouch").start(() -> {
+            long lastTouchedSize = 0;
+            String lastFileName = null;
+            while (running.get()) {
+                try { Thread.sleep(50); } catch (InterruptedException e) { break; }
+                File[] files = walDir.listFiles((d, name) -> name.endsWith(".cq4"));
+                if (files == null || files.length == 0) continue;
+                File latest = files[files.length - 1];
+                String name = latest.getName();
+                long size = latest.length();
+                // 檔案切換時重置追蹤
+                if (!name.equals(lastFileName)) { lastTouchedSize = 0; lastFileName = name; }
+                if (size <= lastTouchedSize) continue;
+                // 只觸摸尚未 fault 的新頁面
+                try (FileChannel ch = FileChannel.open(latest.toPath(), StandardOpenOption.READ)) {
+                    long from = lastTouchedSize;
+                    long chunkSize = size - from;
+                    MappedByteBuffer buf = ch.map(FileChannel.MapMode.READ_ONLY, from, chunkSize);
+                    for (int i = 0; i < (int) chunkSize; i += 4096) { buf.get(i); }
+                } catch (IOException ignored) {}
+                lastTouchedSize = size;
+            }
+        });
     }
 
     // ===== WAITING：只寫 WAL (防 Disruptor 堆積) =====
@@ -176,5 +216,6 @@ public class WalSender extends GatewaySender {
     @Override
     protected final void onSenderStop() {
         try { poller.poll(walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
+        if (preTouchDaemon != null) preTouchDaemon.interrupt();
     }
 }
