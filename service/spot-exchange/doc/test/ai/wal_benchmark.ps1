@@ -192,15 +192,15 @@ try {
     # --- 4. 啟動 Gateway (WAL 模式 + Diagnose) + Matching Engine ---
     Write-Host "Starting Gateway [WAL MODE + DIAGNOSE] (P1:WalSender P2:ReportRecv P3-4:Netty) + Matching Engine (P0)..."
 
-    # Gateway: WAL 模式 (spot.wal.bypass=false) + 診斷模式 (spot.diagnose=true)
+    # Gateway: WAL 模式 (spot.wal.bypass=false) + 診斷模式 (spot.diagnose=false)
     $gw_args_file = "$log_path\ws-api-diagnose.args"
     (Get-Content "$doc_path\jvm\ws-api-throughput.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $gw_args_file
 
     $gw_args = @(
         "@$gw_args_file",
-        "-Dspot.diagnose=true",
+        "-Dspot.diagnose=false",
         "-Xlog:gc*:file=$log_path\gc_gw_wal.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,2,3,4",
+        "-Dspot.affinity.cores=1,2,3,4,5,6",
         "-Dspot.wal.bypass=false",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",

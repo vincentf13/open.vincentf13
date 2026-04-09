@@ -15,6 +15,9 @@ public class WalEvent {
 
     /** Netty publish 到 Disruptor 後的 nanoTime，用於量測 disruptor_wait 延遲 */
     public long publishTimeNs;
+    
+    /** WAL 寫入後分配的序號，由 WalWriter 填入，供 AeronSender 使用 */
+    public long walIndex = -1L;
 
     // ---- 各業務類型專屬欄位 (根據 msgType 選用) ----
     public final WalOrderCreate orderCreate = new WalOrderCreate();

@@ -173,8 +173,11 @@ public class Constants {
         public static final long GATEWAY_JVM_MAX_MB = 211L;
         public static final long GATEWAY_REPORT_RECEIVER_DUTY_CYCLE = 214L;
         public static final long GATEWAY_WAL_SENDER_DUTY_CYCLE = 215L;
+        public static final long GATEWAY_AERON_SENDER_DUTY_CYCLE = 216L;
         public static final long CPU_ID_WAL_SENDER = 1022L;
         public static final long CPU_ID_CURRENT_WAL_SENDER = 1023L;
+        public static final long CPU_ID_AERON_SENDER = 1024L;
+        public static final long CPU_ID_CURRENT_AERON_SENDER = 1025L;
 
         // GC 監控指標
         public static final long MATCHING_GC_COUNT = 300L;
