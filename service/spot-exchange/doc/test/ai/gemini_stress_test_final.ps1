@@ -166,8 +166,9 @@ try {
     Write-Host "正在執行磁碟空間預分配 (WAL & State: 1GB)..."
     fsutil file createnew "$aeron_dir\wal-spot-exchange.dat" 1073741824 | Out-Null
     fsutil file createnew "$aeron_dir\matching-engine-state.dat" 1073741824 | Out-Null
-    # 建立 map 目錄避免 IOException
+    # 建立 map / wal 目錄避免 IOException
     New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
+    New-Item -ItemType Directory -Force "$aeron_dir\wal" | Out-Null
 
     # --- 2. 執行 Maven 編譯與解壓 ---
     Write-Host "正在執行 Maven 構建與並行提取層級化 Jar..."
@@ -232,7 +233,7 @@ try {
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=1,2,3,4",
-        "-Dspot.wal.bypass=true",
+        "-Dspot.wal.bypass=false",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
