@@ -5,6 +5,7 @@ import com.lmax.disruptor.RingBuffer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.bytes.Bytes;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
 import net.openhft.chronicle.queue.ExcerptTailer;
@@ -20,6 +21,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import static open.vincentf13.service.spot.infra.Constants.*;
 
@@ -185,34 +188,37 @@ public class WalSender extends GatewaySender {
         return pollCount;
     }
 
-    // ===== WAL 寫入 =====
+    // ===== WAL 寫入 (binary format, 跳過 Wire key-value 開銷) =====
+
+    /** 預分配 write buffer，單線程獨佔，零分配 */
+    private final byte[] walArr = new byte[128];
+    private final ByteBuffer walBuf = ByteBuffer.wrap(walArr).order(ByteOrder.LITTLE_ENDIAN);
 
     private long writeToWal(WalEvent e) {
-        try (var dc = appender.writingDocument()) {
-            Wire wire = dc.wire();
-            if (wire == null) return -1;
-
-            wire.write(WalField.msgType).int32(e.msgType);
-            wire.write(WalField.gwTime).int64(e.arrivalTimeNs);
-            wire.write(WalField.userId).int64(e.userId);
-            wire.write(WalField.timestamp).int64(e.timestamp);
-
-            switch (e.msgType) {
-                case MsgType.ORDER_CREATE -> {
-                    WalOrderCreate oc = e.orderCreate;
-                    wire.write(WalField.symbolId).int32(oc.symbolId);
-                    wire.write(WalField.price).int64(oc.price);
-                    wire.write(WalField.qty).int64(oc.qty);
-                    wire.write(WalField.side).int8(oc.side);
-                    wire.write(WalField.clientOrderId).int64(oc.clientOrderId);
-                }
-                case MsgType.ORDER_CANCEL -> wire.write(WalField.orderId).int64(e.orderCancel.orderId);
-                case MsgType.DEPOSIT -> {
-                    WalDeposit d = e.deposit;
-                    wire.write(WalField.assetId).int32(d.assetId);
-                    wire.write(WalField.amount).int64(d.amount);
-                }
+        walBuf.clear();
+        walBuf.putInt(e.msgType);
+        walBuf.putLong(e.arrivalTimeNs);
+        walBuf.putLong(e.userId);
+        walBuf.putLong(e.timestamp);
+        switch (e.msgType) {
+            case MsgType.ORDER_CREATE -> {
+                WalOrderCreate oc = e.orderCreate;
+                walBuf.putInt(oc.symbolId);
+                walBuf.putLong(oc.price);
+                walBuf.putLong(oc.qty);
+                walBuf.put(oc.side);
+                walBuf.putLong(oc.clientOrderId);
             }
+            case MsgType.ORDER_CANCEL -> walBuf.putLong(e.orderCancel.orderId);
+            case MsgType.DEPOSIT -> {
+                WalDeposit d = e.deposit;
+                walBuf.putInt(d.assetId);
+                walBuf.putLong(d.amount);
+            }
+        }
+        int len = walBuf.position();
+        try (var dc = appender.writingDocument()) {
+            dc.wire().bytes().write(walArr, 0, len);
             return dc.index();
         }
     }

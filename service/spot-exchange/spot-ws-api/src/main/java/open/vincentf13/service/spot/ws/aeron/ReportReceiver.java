@@ -134,9 +134,9 @@ public class ReportReceiver extends Worker {
     }
 
     /**
-     * 單 Channel 快速路徑：1 次 eventLoop.execute() 批量寫入所有回報。
-     * 多 Channel 路徑：每 Channel 1 次 execute()。
-     * 原先 N 次跨線程 WriteTask + ChannelPromise 降為 ≤channelCount 次。
+     * 將本輪 poll 的所有回報按 Channel 分組，每個 Channel 合併為一個 WebSocket frame 發送。
+     * 相比原先 N 個 frame，減少 WebSocket 編碼開銷和 Netty EventLoop write 次數。
+     * BenchmarkTool 端需支援從單個 frame 中解析多筆 report。
      */
     private void flushBatch() {
         int count = batchCount;
@@ -150,19 +150,13 @@ public class ReportReceiver extends Worker {
         }
 
         if (singleChannel) {
-            // 複製 buf 參考到局部陣列，避免 lambda 捕獲 this 的可變欄位
-            // 注意：不能用預分配 field array，因為 EventLoop 線程和 report-receiver 線程有 race
-            ByteBuf[] bufs = new ByteBuf[count];
-            System.arraycopy(batchBufs, 0, bufs, 0, count);
+            // 合併 reports 到 ByteBuf，按 MAX_FRAME_SIZE 分片發送
+            sendMerged(firstCh, batchBufs, count);
             clearRefs(count);
-            firstCh.eventLoop().execute(() -> {
-                for (ByteBuf buf : bufs) firstCh.write(new BinaryWebSocketFrame(buf));
-                firstCh.flush();
-            });
             return;
         }
 
-        // 多 Channel 路徑：使用預分配陣列按 Channel 分組批次寫入，實現零分配 (Zero Allocation) GC 友善
+        // 多 Channel 路徑：每 Channel 合併為一個 frame
         int uniqueCount = 0;
         for (int i = 0; i < count; i++) {
             Channel ch = batchChannels[i];
@@ -187,23 +181,60 @@ public class ReportReceiver extends Worker {
         for (int i = 0; i < uniqueCount; i++) {
             Channel ch = uniqueChannels[i];
             int chCount = channelCounts[i];
-            
-            // 將批次封包複製給獨立的陣列供異步 EventLoop 使用 (唯一必要的最小分配)
-            ByteBuf[] bufs = new ByteBuf[chCount];
-            System.arraycopy(channelBufs[i], 0, bufs, 0, chCount);
-            
+
+            int totalLen = 0;
+            for (int j = 0; j < chCount; j++) totalLen += channelBufs[i][j].readableBytes();
+            ByteBuf combined = ALLOC.directBuffer(totalLen);
+            for (int j = 0; j < chCount; j++) {
+                combined.writeBytes(channelBufs[i][j]);
+                channelBufs[i][j].release();
+                channelBufs[i][j] = null;
+            }
+            uniqueChannels[i] = null;
+
+            sendMerged(ch, channelBufs[i], chCount);
+        }
+        clearRefs(count);
+    }
+
+    /** 合併 bufs 並按 MAX_FRAME_SIZE 分片為多個 WebSocket frame 發送 */
+    private static final int MAX_FRAME_SIZE = 60_000; // < 65536 WebSocket default max
+
+    private void sendMerged(Channel ch, ByteBuf[] bufs, int count) {
+        int totalLen = 0;
+        for (int i = 0; i < count; i++) totalLen += bufs[i].readableBytes();
+
+        if (totalLen <= MAX_FRAME_SIZE) {
+            // 所有 report 合併為單一 frame
+            ByteBuf combined = ALLOC.directBuffer(totalLen);
+            for (int i = 0; i < count; i++) { combined.writeBytes(bufs[i]); bufs[i].release(); }
+            ch.eventLoop().execute(() -> ch.writeAndFlush(new BinaryWebSocketFrame(combined)));
+        } else {
+            // 分片：每個 frame 不超過 MAX_FRAME_SIZE
+            ByteBuf current = ALLOC.directBuffer(MAX_FRAME_SIZE);
+            // 收集所有 frame 到陣列供 lambda 使用
+            ByteBuf[] frames = new ByteBuf[(totalLen / MAX_FRAME_SIZE) + 2];
+            int frameIdx = 0;
+            for (int i = 0; i < count; i++) {
+                int reportLen = bufs[i].readableBytes();
+                if (current.readableBytes() + reportLen > MAX_FRAME_SIZE && current.readableBytes() > 0) {
+                    frames[frameIdx++] = current;
+                    current = ALLOC.directBuffer(MAX_FRAME_SIZE);
+                }
+                current.writeBytes(bufs[i]);
+                bufs[i].release();
+            }
+            if (current.readableBytes() > 0) frames[frameIdx++] = current; else current.release();
+            int total = frameIdx;
+            ByteBuf[] finalFrames = new ByteBuf[total];
+            System.arraycopy(frames, 0, finalFrames, 0, total);
             ch.eventLoop().execute(() -> {
-                for (int j = 0; j < chCount; j++) {
-                    ch.write(new BinaryWebSocketFrame(bufs[j]));
+                for (int i = 0; i < finalFrames.length; i++) {
+                    ch.write(new BinaryWebSocketFrame(finalFrames[i]));
                 }
                 ch.flush();
             });
-
-            // 清理這輪的參照，避免記憶體洩漏
-            uniqueChannels[i] = null;
-            for (int j = 0; j < chCount; j++) channelBufs[i][j] = null;
         }
-        clearRefs(count);
     }
 
     private void clearRefs(int count) {

@@ -86,7 +86,7 @@ public class NettyServer {
                             ch.pipeline().addLast(new HttpServerCodec());
                             ch.pipeline().addLast(new ChunkedWriteHandler());
                             ch.pipeline().addLast(new HttpObjectAggregator(65536));
-                            ch.pipeline().addLast(new WebSocketServerProtocolHandler(Ws.PATH));
+                            ch.pipeline().addLast(new WebSocketServerProtocolHandler(Ws.PATH, null, true, 256 * 1024));
                             ch.pipeline().addLast(wsHandler);
                         }
                     })

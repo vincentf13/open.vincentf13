@@ -131,7 +131,7 @@ public class Storage {
         new File(dir).mkdirs();
         return SingleChronicleQueueBuilder.single(dir + q.getPath())
                 .rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY)
-                .blockSize(128 << 20) // 128MB 預分配塊，減少 OS 分頁時的停頓
+                .blockSize(512 << 20) // 512MB 預分配塊，覆蓋整個 benchmark 週期避免 block 切換 page fault
                 .build();
     }
 

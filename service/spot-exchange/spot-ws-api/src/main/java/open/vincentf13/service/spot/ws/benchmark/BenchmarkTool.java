@@ -70,7 +70,7 @@ public class BenchmarkTool {
         try {
             URI uri = new URI(WS_URL);
             WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
-                    uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders());
+                    uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders(), 256 * 1024);
 
             Channel ch = new Bootstrap()
                     .group(group)
@@ -253,6 +253,7 @@ public class BenchmarkTool {
 
     private static class ReportHandler extends SimpleChannelInboundHandler<Object> {
         private static final int ACCEPTED = 107, REJECTED = 108, CANCELED = 109, MATCHED = 110;
+        private static final int ACCEPTED_LEN = 52, REJECTED_LEN = 44, CANCELED_LEN = 60, MATCHED_LEN = 85;
 
         private final WebSocketClientHandshaker handshaker;
         private final CountDownLatch connected;
@@ -276,37 +277,56 @@ public class BenchmarkTool {
 
             if (msg instanceof BinaryWebSocketFrame frame) {
                 ByteBuf content = frame.content();
-                if (content.readableBytes() < 20) return;
+                int readable = content.readableBytes();
+                int pos = 0;
 
-                int msgType = content.getIntLE(0);
-
-                switch (msgType) {
-                    case ACCEPTED -> acceptedCount.incrementAndGet();
-                    case REJECTED -> rejectedCount.incrementAndGet();
-                    case CANCELED -> canceledCount.incrementAndGet();
-                    case MATCHED  -> matchedCount.incrementAndGet();
-                    default -> { unknownCount.incrementAndGet(); return; }
-                }
-
-                if (!measuring) return;
-
-                long clientOrderId = extractClientOrderId(msgType, content);
-                if (clientOrderId > 0) {
-                    long roundTrip = System.nanoTime() - clientOrderId;
-                    if (roundTrip > 0 && roundTrip < TimeUnit.SECONDS.toNanos(60)) {
-                        histogram.recordValue(roundTrip);
+                // 支援 batched reports：一個 WebSocket frame 可能包含多筆 report
+                while (pos + 20 <= readable) {
+                    int msgType = content.getIntLE(pos);
+                    int reportLen = reportLength(msgType);
+                    if (reportLen <= 0 || pos + reportLen > readable) {
+                        unknownCount.incrementAndGet();
+                        break;
                     }
-                    recvCount.incrementAndGet();
+
+                    switch (msgType) {
+                        case ACCEPTED -> acceptedCount.incrementAndGet();
+                        case REJECTED -> rejectedCount.incrementAndGet();
+                        case CANCELED -> canceledCount.incrementAndGet();
+                        case MATCHED  -> matchedCount.incrementAndGet();
+                    }
+
+                    if (measuring) {
+                        long clientOrderId = extractClientOrderId(msgType, content, pos);
+                        if (clientOrderId > 0) {
+                            long roundTrip = System.nanoTime() - clientOrderId;
+                            if (roundTrip > 0 && roundTrip < TimeUnit.SECONDS.toNanos(60)) {
+                                histogram.recordValue(roundTrip);
+                            }
+                            recvCount.incrementAndGet();
+                        }
+                    }
+                    pos += reportLen;
                 }
             }
         }
 
-        private long extractClientOrderId(int msgType, ByteBuf buf) {
+        private static int reportLength(int msgType) {
             return switch (msgType) {
-                case ACCEPTED -> buf.readableBytes() >= 52 ? buf.getLongLE(44) : 0;
-                case REJECTED -> buf.readableBytes() >= 44 ? buf.getLongLE(36) : 0;
-                case CANCELED -> buf.readableBytes() >= 60 ? buf.getLongLE(52) : 0;
-                case MATCHED  -> buf.readableBytes() >= 85 ? buf.getLongLE(77) : 0;
+                case ACCEPTED -> ACCEPTED_LEN;
+                case REJECTED -> REJECTED_LEN;
+                case CANCELED -> CANCELED_LEN;
+                case MATCHED  -> MATCHED_LEN;
+                default -> -1;
+            };
+        }
+
+        private static long extractClientOrderId(int msgType, ByteBuf buf, int pos) {
+            return switch (msgType) {
+                case ACCEPTED -> buf.getLongLE(pos + 44);
+                case REJECTED -> buf.getLongLE(pos + 36);
+                case CANCELED -> buf.getLongLE(pos + 52);
+                case MATCHED  -> buf.getLongLE(pos + 77);
                 default -> 0;
             };
         }

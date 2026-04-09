@@ -186,24 +186,26 @@ public class GatewaySender extends Worker {
         trySend(sbeBodyLength(e.msgType));
     }
 
+    /** 從 WAL binary 格式讀取並發送到 Aeron（RESUME replay 使用） */
     protected boolean readAndSendFromWire(net.openhft.chronicle.wire.Wire wire, long walIndex) {
-        curMsgType   = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.msgType).int32();
-        curGwTime    = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.gwTime).int64();
-        curUserId    = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.userId).int64();
-        curTimestamp  = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.timestamp).int64();
+        net.openhft.chronicle.bytes.Bytes<?> bytes = wire.bytes();
+        curMsgType   = bytes.readInt();
+        curGwTime    = bytes.readLong();
+        curUserId    = bytes.readLong();
+        curTimestamp  = bytes.readLong();
         curWalIndex  = walIndex;
         switch (curMsgType) {
             case MsgType.ORDER_CREATE -> {
-                curSymbolId = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.symbolId).int32();
-                curPrice = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.price).int64();
-                curQty = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.qty).int64();
-                curSide = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.side).int8();
-                curClientOrderId = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.clientOrderId).int64();
+                curSymbolId = bytes.readInt();
+                curPrice = bytes.readLong();
+                curQty = bytes.readLong();
+                curSide = bytes.readByte();
+                curClientOrderId = bytes.readLong();
             }
-            case MsgType.ORDER_CANCEL -> curOrderId = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.orderId).int64();
+            case MsgType.ORDER_CANCEL -> curOrderId = bytes.readLong();
             case MsgType.DEPOSIT -> {
-                curAssetId = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.assetId).int32();
-                curAmount = wire.read(open.vincentf13.service.spot.infra.chronicle.WalField.amount).int64();
+                curAssetId = bytes.readInt();
+                curAmount = bytes.readLong();
             }
             default -> { return true; }
         }
