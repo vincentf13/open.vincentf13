@@ -50,10 +50,10 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=1G
 -XX:+AlwaysPreTouch
-# Large Pages：將 Gateway Heap 縮減為 2G 後，在 32GB 開發機上已能穩定分配大頁。
-# 開啟大頁分頁 (Large Pages) 能顯著降低 Netty Buffer Pool 存取時的 TLB Miss 壓力，
-# 在高吞吐並行環境與後續切回 WAL 模式下提供更穩定的 P99 延遲。
--XX:+UseLargePages
+# Large Pages：在 32GB Windows 開發機上實測，即便 Heap 縮減至 2G，
+# 仍因實體記憶體碎片化導致 OS 無法給出足夠的連續大頁，進而引發 JVM 啟動失敗。
+# 因此在本地開發環境保持關閉，僅於 64GB+ 的 Linux 伺服器上開啟以獲得 TLB 效能紅利。
+# -XX:+UseLargePages
 
 # --- 執行緒與排程優化 ---
 -XX:+UseThreadPriorities
