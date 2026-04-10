@@ -30,7 +30,7 @@
 --add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
 --add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
 
-# --- GC 優化：Java 21/23 ZGC (吞吐量優先模式) ---
+# --- GC：Java 21/23 ZGC (低延遲) ---
 -XX:+UseZGC
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
@@ -38,7 +38,7 @@
 # GC 線程跑在共享核心 (0,1,14,15)，不搶業務核心，可安全使用多線程加速 GC cycle
 -XX:ConcGCThreads=2
 -XX:ZAllocationSpikeTolerance=5.0
-# 關閉 ZGC 主動 GC：8GB heap + 低分配率下不需要 proactive cycle
+# 關閉 ZGC 主動 GC：4GB heap + 低分配率下不需要 proactive cycle
 -XX:-ZProactive
 
 # --- 記憶體配置 (4GB Heap + 8GB Direct) ---
@@ -60,12 +60,10 @@
 -XX:+UseThreadPriorities
 -XX:ThreadPriorityPolicy=1
 -XX:+UnlockDiagnosticVMOptions
-# 預先加載所有類別，減少執行期的 IO 抖動
--Xshare:off
 
-# --- Arrow Lake P-core & 物理層優化 ---
--XX:+UseNUMA
+# --- 物理層優化 ---
 -XX:+PerfDisableSharedMem
+# 停用強制 safepoint 週期（1s）：避免週期性 STW 對 p999 的干擾
 -XX:GuaranteedSafepointInterval=0
 # 允許 @Contended 註解在非 JDK 類別生效 (Cache Line Padding)
 -XX:-RestrictContended
@@ -74,7 +72,6 @@
 -XX:+TieredCompilation
 -XX:TieredStopAtLevel=4
 -XX:CICompilerCount=4
--XX:CompileThreshold=1000
 -XX:InlineSmallCode=4000
 -XX:MaxInlineLevel=15
 

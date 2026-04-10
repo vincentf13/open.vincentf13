@@ -30,7 +30,7 @@
 --add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED
 --add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
 
-# --- GC 優化：Java 21/23 ZGC (吞吐量優先模式) ---
+# --- GC：Java 21/23 ZGC (低延遲) ---
 -XX:+UseZGC
 # 不限制暫停時間，讓 GC 線程有更多空間處理高分配率
 -XX:ZUncommitDelay=3600
@@ -58,10 +58,10 @@
 -XX:+UseThreadPriorities
 -XX:ThreadPriorityPolicy=1
 
-# --- 物理層與吞吐量優化 ---
--XX:+UseNUMA
+# --- 物理層優化 ---
 -XX:+PerfDisableSharedMem
 -XX:+UnlockDiagnosticVMOptions
+# 停用強制 safepoint 週期（1s）：避免週期性 STW 對 p999 的干擾
 -XX:GuaranteedSafepointInterval=0
 -XX:-RestrictContended
 
