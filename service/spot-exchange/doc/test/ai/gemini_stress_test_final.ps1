@@ -240,7 +240,8 @@ try {
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=1,10,12",
-        "-Dspot.wal.bypass=true",
+        "-Dspot.wal.bypass=false",
+        "-Dwal.pretouch=false",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",

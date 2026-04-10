@@ -38,6 +38,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @ConditionalOnProperty(name = "spot.wal.bypass", havingValue = "false", matchIfMissing = true)
 public class WalSender extends GatewaySender {
 
+    private static final boolean PRETOUCH_ENABLED = Boolean.parseBoolean(System.getProperty("wal.pretouch", "true"));
+
     private final ChronicleQueue wal;
     private ExcerptAppender appender;
     private ExcerptTailer replayTailer;
@@ -60,7 +62,12 @@ public class WalSender extends GatewaySender {
         PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.WAL_BASE_DIR));
         this.appender = wal.acquireAppender();
         this.replayTailer = wal.createTailer();
-        startPreTouchDaemon();
+        if (PRETOUCH_ENABLED) {
+            startPreTouchDaemon();
+            log.info("[WAL-SENDER] pretouch daemon enabled");
+        } else {
+            log.info("[WAL-SENDER] pretouch daemon disabled (wal.pretouch=false)");
+        }
     }
 
     /**
