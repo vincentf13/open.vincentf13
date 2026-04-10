@@ -69,6 +69,10 @@ public class GatewaySender extends Worker {
     // ===== Bypass 模式狀態 =====
     private long bypassSeq = 0;
 
+    // ===== 熱路徑採樣：減少 control poll / volatile read 頻率 =====
+    private long iterCounter = 0;
+    private static final long CONTROL_CHECK_MASK = 0xFF; // 每 256 次 iter 輪詢一次控制通道
+
     // ===== Diagnose =====
     protected static final boolean DIAGNOSE = Boolean.getBoolean("spot.diagnose");
     protected long sendDoneNs;
@@ -105,18 +109,27 @@ public class GatewaySender extends Worker {
 
     @Override
     protected int doWork() {
-        if (currentState == AeronState.SENDING && !publication.isConnected()) currentState = AeronState.WAITING;
-
-        long beforeControl = DIAGNOSE ? System.nanoTime() : 0;
-        int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
-        if (DIAGNOSE) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_CONTROL_POLL, System.nanoTime() - beforeControl);
-
-        if (currentState == AeronState.WAITING) {
-            work += drainWhileWaiting();
+        // 熱路徑 (SENDING state)：只 processEvents，連線與控制通道檢查採樣
+        if (currentState == AeronState.SENDING) {
+            int work = processEvents();
+            // 每 256 iter 輪詢一次控制通道 + 檢查連線狀態
+            if ((++iterCounter & CONTROL_CHECK_MASK) == 0) {
+                if (!publication.isConnected()) {
+                    currentState = AeronState.WAITING;
+                } else {
+                    long beforeControl = DIAGNOSE ? System.nanoTime() : 0;
+                    work += controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
+                    if (DIAGNOSE) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_CONTROL_POLL, System.nanoTime() - beforeControl);
+                }
+            }
             return work;
         }
 
-        work += processEvents();
+        // WAITING state 路徑 (低頻)
+        long beforeControl = DIAGNOSE ? System.nanoTime() : 0;
+        int work = controlSub.poll(resumeHandler, AeronConstants.AERON_POLL_LIMIT);
+        if (DIAGNOSE) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_CONTROL_POLL, System.nanoTime() - beforeControl);
+        work += drainWhileWaiting();
         return work;
     }
 

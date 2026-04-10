@@ -1,8 +1,8 @@
 package open.vincentf13.service.spot.ws.aeron;
 
 import io.aeron.Aeron;
-import io.aeron.FragmentAssembler;
 import io.aeron.Subscription;
+import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.Header;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -42,7 +42,7 @@ public class ReportReceiver extends Worker {
 
     private final WsSessionManager sessionManager;
     private Subscription subscription;
-    private FragmentAssembler assembler;
+    private FragmentHandler fragmentHandler;
 
     // 預分配批次陣列：×2 因為 batch match 每個 fragment 拆成 taker+maker 兩筆 report
     private final Channel[] batchChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
@@ -67,13 +67,14 @@ public class ReportReceiver extends Worker {
     @Override
     protected void onStart() {
         subscription = AeronUtil.aeron().addSubscription(AeronChannel.REPORT_FLOW, AeronChannel.REPORT_STREAM_ID);
-        assembler = new FragmentAssembler(this::onReport);
+        // reports are always single-fragment (<100B), skip FragmentAssembler overhead
+        fragmentHandler = this::onReport;
         log.info("ReportReceiver 已啟動，訂閱回報流");
     }
 
     @Override
     protected int doWork() {
-        int work = subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
+        int work = subscription.poll(fragmentHandler, AeronConstants.AERON_POLL_LIMIT);
         if (batchCount > 0) {
             flushBatch();
         }

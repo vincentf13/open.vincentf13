@@ -1,8 +1,8 @@
 package open.vincentf13.service.spot.matching.aeron;
 
-import io.aeron.FragmentAssembler;
 import io.aeron.Publication;
 import io.aeron.Subscription;
+import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.Header;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -39,11 +39,15 @@ public class AeronReceiver extends Worker {
 
     private Subscription subscription;
     private Publication controlPub;
-    private FragmentAssembler assembler;
+    private FragmentHandler fragmentHandler;
 
     private AeronState currentState = AeronState.WAITING;
     private long lastResumeTime = 0;
     private long lastMsgReceivedTime = 0;
+
+    // 熱路徑採樣：減少 state check / volatile read 頻率
+    private long iterCounter = 0;
+    private static final long STATE_CHECK_MASK = 0xFF; // 每 256 次 iter 檢查一次 state
 
     /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
     public AeronReceiver(@SuppressWarnings("unused") io.aeron.Aeron aeron, Engine engine) {
@@ -60,7 +64,8 @@ public class AeronReceiver extends Worker {
         engine.onStart();
         subscription = AeronUtil.aeron().addSubscription(AeronChannel.MATCHING_FLOW, AeronChannel.DATA_STREAM_ID);
         controlPub = AeronUtil.aeron().addPublication(AeronChannel.REPORT_FLOW, AeronChannel.CONTROL_STREAM_ID);
-        assembler = new FragmentAssembler(this::onFragment);
+        // 所有 SBE 訊息 <100B，遠小於 IPC MTU，不需 FragmentAssembler 重組
+        fragmentHandler = this::onFragment;
 
         progress.setLastProcessedSeq(engine.getNetworkProgress().getLastProcessedSeq());
         log.info("AeronReceiver 啟動，進度: {}，等待恢復...", progress.getLastProcessedSeq());
@@ -69,18 +74,26 @@ public class AeronReceiver extends Worker {
 
     @Override
     protected int doWork() {
-        if (currentState == AeronState.SENDING && !subscription.isConnected()) currentState = AeronState.WAITING;
-
-        if (currentState == AeronState.SENDING
-                && lastMsgReceivedTime > 0
-                && Clock.now() - lastMsgReceivedTime > AeronConstants.RECEIVER_STALL_TIMEOUT_MS) {
-            log.warn("AeronReceiver 超時 {}ms 未收到數據，重置為 WAITING 以重發 RESUME", AeronConstants.RECEIVER_STALL_TIMEOUT_MS);
-            currentState = AeronState.WAITING;
+        // 熱路徑 (SENDING state)：只 poll + onPollCycle，state 檢查採樣
+        if (currentState == AeronState.SENDING) {
+            int done = subscription.poll(fragmentHandler, AeronConstants.AERON_POLL_LIMIT);
+            engine.onPollCycle(done, progress.getLastProcessedSeq());
+            // 每 256 iter 檢查一次連線與 stall timeout
+            if ((++iterCounter & STATE_CHECK_MASK) == 0) {
+                if (!subscription.isConnected()) {
+                    currentState = AeronState.WAITING;
+                } else if (lastMsgReceivedTime > 0
+                        && Clock.now() - lastMsgReceivedTime > AeronConstants.RECEIVER_STALL_TIMEOUT_MS) {
+                    log.warn("AeronReceiver 超時 {}ms 未收到數據，重置為 WAITING 以重發 RESUME", AeronConstants.RECEIVER_STALL_TIMEOUT_MS);
+                    currentState = AeronState.WAITING;
+                }
+            }
+            return done;
         }
 
-        if (currentState == AeronState.WAITING && Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
-
-        int done = subscription.poll(assembler, AeronConstants.AERON_POLL_LIMIT);
+        // WAITING state 路徑 (低頻)
+        if (Clock.now() - lastResumeTime > AeronConstants.RESUME_SIGNAL_INTERVAL_MS) sendResume();
+        int done = subscription.poll(fragmentHandler, AeronConstants.AERON_POLL_LIMIT);
         engine.onPollCycle(done, progress.getLastProcessedSeq());
         return done;
     }

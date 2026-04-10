@@ -181,6 +181,10 @@ try {
     $g_t = "$base_path\service\spot-exchange\spot-ws-api\target"
     $g_dest = "$g_t\extracted"
 
+    # 清空舊 extracted 目錄，避免 layertools 不清理殘留檔案造成新舊混用
+    Remove-Item -Recurse -Force $m_dest -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force $g_dest -ErrorAction SilentlyContinue
+
     $job1 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-matching.jar" extract --destination "$d/" } -ArgumentList $m_t, $m_dest
     $job2 = Start-Job -ScriptBlock { param($t, $d) java -Djarmode=layertools -jar "$t\spot-ws-api.jar" extract --destination "$d/" } -ArgumentList $g_t, $g_dest
     Wait-Job $job1, $job2 | Out-Null
@@ -259,40 +263,40 @@ try {
     $e.ProcessorAffinity = 57404  # P13 (AeronReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    Write-Host "等待服務啟動 (20s)..."
-    Start-Sleep -Seconds 20
+    Write-Host "等待服務啟動 (12s)..."
+    Start-Sleep -Seconds 12
 
     # --- 預熱 ZGC：短暫高壓跑 15 秒，強制 ZGC Warmup 在正式壓測前完成 ---
-    Write-Host "Pre-warming ZGC (25s burst at 60K/sec)..."
+    Write-Host "Pre-warming ZGC (15s burst at 60K/sec)..."
     $preWarm = Start-Process java -ArgumentList @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-        "60000", "1", "25"
+        "60000", "1", "15"
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
-    $preWarm.ProcessorAffinity = 896  # E-cluster2 {7,8,9} (benchmark 獨享；E6 讓給 netty_worker_2)
+    $preWarm.ProcessorAffinity = 960  # E-cluster2 {6,7,8,9} (benchmark 獨享，整個 4MB L2)
     $preWarm.WaitForExit()
-    Write-Host "Pre-warm 完成，等待穩定 (5s)..."
-    Start-Sleep -Seconds 5
+    Write-Host "Pre-warm 完成，等待穩定 (3s)..."
+    Start-Sleep -Seconds 3
 
-    # --- 6. 啟動 Java Benchmark (E-cluster2 {7,8,9} 3 核，E6 讓給 netty_worker_2) ---
-    Write-Host "Starting Java Benchmark (E7-E9, 3 cores)..."
+    # --- 6. 啟動 Java Benchmark (E-cluster2 {6-9} 整個 4 核獨享，獨佔 4MB L2) ---
+    Write-Host "Starting Java Benchmark (E-cluster2: E6-E9)..."
     $bench_args = @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000",   # 6萬 orders/sec
-        "30",      # 30秒測量
-        "60"       # 60秒預熱 (ZGC Warmup 已在 pre-warm 階段完成)
+        "20",      # 20秒測量
+        "45"       # 45秒預熱 (確保 ZGC Old cycle 在 measure 前觸發穩態)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
-    $bench.ProcessorAffinity = 896 # E-cluster2 {7,8,9} (E6 讓給 netty_worker_2 共享同 L2)
+    $bench.ProcessorAffinity = 960 # E-cluster2 {6,7,8,9} (benchmark 獨享)
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 
     # --- Warmup 結束前重置內部指標 (排除 warmup 數據污染) ---
     $resetJob = Start-Job -ScriptBlock {
-        Start-Sleep -Seconds 58  # warmup 60s，提前 2s 重置
+        Start-Sleep -Seconds 43  # warmup 45s，提前 2s 重置
         try { Invoke-RestMethod -Uri "http://localhost:8082/api/test/metrics/reset" -Method POST -ErrorAction Stop | Out-Null }
         catch { } # 靜默失敗
     }
