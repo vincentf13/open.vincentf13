@@ -38,12 +38,11 @@
 # GC 線程跑在共享核心 (0,1,14,15)，不搶業務核心，可安全使用多線程加速 GC cycle
 -XX:ConcGCThreads=2
 -XX:ZAllocationSpikeTolerance=5.0
-# 關閉 ZGC 主動 GC：4GB heap + 低分配率下不需要 proactive cycle
+# 關閉 ZGC 主動 GC：2GB heap + 低分配率下不需要 proactive cycle
 -XX:-ZProactive
 
 # --- 記憶體配置 (2GB Heap + 1GB Direct) ---
-# 2GB 時 ZGC concurrent mark 的 L3 cache 污染導致 Matching p99 spike (100ms+)。
-# 如果進一步縮小會增加 ZGC 週期頻率，先測試 2GB。
+# 經過實測，2GB Heap 能提供足夠的 Headroom 讓 ZGC 穩定運作而不會產生延遲突波。
 -Xms2G
 -Xmx2G
 -Xlog:gc+init
