@@ -41,14 +41,14 @@
 # 關閉 ZGC 主動 GC：4GB heap + 低分配率下不需要 proactive cycle
 -XX:-ZProactive
 
-# --- 記憶體配置 (4GB Heap + 8GB Direct) ---
+# --- 記憶體配置 (2GB Heap + 1GB Direct) ---
 # 2GB 時 ZGC concurrent mark 的 L3 cache 污染導致 Matching p99 spike (100ms+)。
-# 4GB 給 ZGC 更大 headroom，減少 mark 頻率。
--Xms4G
--Xmx4G
+# 如果進一步縮小會增加 ZGC 週期頻率，先測試 2GB。
+-Xms2G
+-Xmx2G
 -Xlog:gc+init
 -Xlog:pagesize
--XX:MaxDirectMemorySize=2G
+-XX:MaxDirectMemorySize=1G
 -XX:+AlwaysPreTouch
 # Large Pages 讓給 Gateway：Matching 的 order book working set 小且反覆存取，
 # TLB 壓力低；Gateway 的 Netty buffer pool + 多連線並行 heap 存取更散佈，
