@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class WalConfig {
 
-    private static final int RING_BUFFER_SIZE = 1 << 16; // 65536
+    private static final int RING_BUFFER_SIZE = 1 << 14; // 16384
 
     @Bean
     public RingBuffer<WalEvent> walRingBuffer(@org.springframework.beans.factory.annotation.Value("${netty.worker.count:2}") int workerCount) {
