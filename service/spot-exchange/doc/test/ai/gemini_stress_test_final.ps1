@@ -219,9 +219,10 @@ try {
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
-    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P12/P13:netty漂移目標) + Matching (P0:AeronReceiver)..."
+    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P0/P12:netty漂移目標) + Matching (P13:AeronReceiver)..."
 
-    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 希望漂到 P12/P13，GC/JIT=E-cluster1+LP14-15
+    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 希望漂到 P0/P12，GC/JIT=E-cluster1+LP14-15
+    # 註：matching 從 P0 搬到 P13，P0 讓給 netty/OS (實驗性：避開 Windows core-0 DPC 噪音)
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
     if ($Diagnose) {
@@ -241,27 +242,27 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 62526  # P1 (bypass-sender) + P10 (report-receiver) + P12, P13 (netty 漂移目標) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
+    $g.ProcessorAffinity = 54335  # P0 (netty漂移) + P1 (bypass-sender) + P10 (report-receiver) + P12 (netty漂移) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    # Matching Engine: AeronReceiver Worker=P0, GC/JIT=E-cluster1{2,3,4,5}+LP14,15
+    # Matching Engine: AeronReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
     $matching_args = @(
         "@$doc_path\jvm\matching-low-latency.args",
-        "-Dspot.affinity.cores=0",
+        "-Dspot.affinity.cores=13",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49213  # P0 (AeronReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
+    $e.ProcessorAffinity = 57404  # P13 (AeronReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務啟動 (20s)..."
     Start-Sleep -Seconds 20
 
     # --- 預熱 ZGC：短暫高壓跑 15 秒，強制 ZGC Warmup 在正式壓測前完成 ---
-    Write-Host "Pre-warming ZGC (15s burst at 60K/sec)..."
+    Write-Host "Pre-warming ZGC (25s burst at 60K/sec)..."
     $preWarm = Start-Process java -ArgumentList @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
