@@ -139,8 +139,9 @@ function Safe-Remove($path) {
 }
 
 try {
-    Write-Host ">>> [OS] 開啟高精度時鐘、關閉網卡省電與封包合併、停用網路限流、切換至卓越效能..."
+    Write-Host ">>> [OS] 開啟高精度時鐘、清理實體記憶體、關閉網卡省電與封包合併、停用網路限流、切換至卓越效能..."
     [HighPrecisionTimer]::SetMaxResolution()
+    [MemoryCompactor]::PurgeStandbyList() | Out-Null
     powercfg /setactive $ultimateScheme
 
     # 停用網路限流器 (NetworkThrottlingIndex=0xFFFFFFFF, SystemResponsiveness=0)
