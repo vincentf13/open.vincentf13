@@ -48,7 +48,7 @@
 -Xmx4G
 -Xlog:gc+init
 -Xlog:pagesize
--XX:MaxDirectMemorySize=8G
+-XX:MaxDirectMemorySize=2G
 -XX:+AlwaysPreTouch
 # Large Pages 讓給 Gateway：Matching 的 order book working set 小且反覆存取，
 # TLB 壓力低；Gateway 的 Netty buffer pool + 多連線並行 heap 存取更散佈，

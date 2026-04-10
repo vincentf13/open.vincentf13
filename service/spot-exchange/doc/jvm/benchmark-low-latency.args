@@ -23,7 +23,6 @@
 -XX:MaxDirectMemorySize=1g
 
 # --- 降低測量抖動 ---
--XX:+UseNUMA
 -XX:+PerfDisableSharedMem
 -XX:+UnlockDiagnosticVMOptions
 -XX:GuaranteedSafepointInterval=0
