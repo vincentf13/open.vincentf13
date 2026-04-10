@@ -219,10 +219,10 @@ try {
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
-    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P0/P12:netty漂移目標) + Matching (P13:AeronReceiver)..."
+    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:AeronReceiver)..."
 
-    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 希望漂到 P0/P12，GC/JIT=E-cluster1+LP14-15
-    # 註：matching 從 P0 搬到 P13，P0 讓給 netty/OS (實驗性：避開 Windows core-0 DPC 噪音)
+    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
+    # 註：P0 完全排除（Windows DPC 噪音核心），所有 Java process 都不使用 P0
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
     if ($Diagnose) {
@@ -234,7 +234,7 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,10",
+        "-Dspot.affinity.cores=1,10,12,6",
         "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -242,7 +242,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 54335  # P0 (netty漂移) + P1 (bypass-sender) + P10 (report-receiver) + P12 (netty漂移) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
+    $g.ProcessorAffinity = 54398  # P1 (bypass-sender) + P10 (report-receiver) + P12 (netty_worker_1) + E6 (netty_worker_2) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: AeronReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
@@ -269,13 +269,13 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000", "1", "25"
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
-    $preWarm.ProcessorAffinity = 960  # E-cluster2 {6,7,8,9} (benchmark 獨享，整個 4MB L2)
+    $preWarm.ProcessorAffinity = 896  # E-cluster2 {7,8,9} (benchmark 獨享；E6 讓給 netty_worker_2)
     $preWarm.WaitForExit()
     Write-Host "Pre-warm 完成，等待穩定 (5s)..."
     Start-Sleep -Seconds 5
 
-    # --- 6. 啟動 Java Benchmark (E-cluster2 {6-9} 整個 4 核獨享，獨佔 4MB L2) ---
-    Write-Host "Starting Java Benchmark (E-cluster2: E6-E9)..."
+    # --- 6. 啟動 Java Benchmark (E-cluster2 {7,8,9} 3 核，E6 讓給 netty_worker_2) ---
+    Write-Host "Starting Java Benchmark (E7-E9, 3 cores)..."
     $bench_args = @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
@@ -285,7 +285,7 @@ try {
         "60"       # 60秒預熱 (ZGC Warmup 已在 pre-warm 階段完成)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
-    $bench.ProcessorAffinity = 960 # E-cluster2 {6,7,8,9} (benchmark 獨享)
+    $bench.ProcessorAffinity = 896 # E-cluster2 {7,8,9} (E6 讓給 netty_worker_2 共享同 L2)
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 
