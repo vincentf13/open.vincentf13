@@ -50,9 +50,10 @@
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=1G
 -XX:+AlwaysPreTouch
-# Large Pages：32GB 機器上物理記憶體碎片化導致 4G 大頁分配頻繁失敗。
-# 需 64GB+ 機器或更小的 heap 才能穩定使用。
-# -XX:+UseLargePages
+# Large Pages：將 Gateway Heap 縮減為 2G 後，在 32GB 開發機上已能穩定分配大頁。
+# 開啟大頁分頁 (Large Pages) 能顯著降低 Netty Buffer Pool 存取時的 TLB Miss 壓力，
+# 在高吞吐並行環境與後續切回 WAL 模式下提供更穩定的 P99 延遲。
+-XX:+UseLargePages
 
 # --- 執行緒與排程優化 ---
 -XX:+UseThreadPriorities
