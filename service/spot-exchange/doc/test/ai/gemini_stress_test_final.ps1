@@ -185,14 +185,15 @@ try {
     Wait-Job $job1, $job2 | Out-Null
     Remove-Job $job1, $job2
 
-    # --- 3. 啟動 獨立式 Media Driver (conductor=P5, sender/receiver=E6,7) ---
-    # Intel Core Ultra 9 285H 核心拓撲：
-    #   P-core 0-5 (Lion Cove, 3MB L2/core, 共享 24MB L3)
-    #   E-core 6-9 (Skymont cluster 1, 共享 4MB L2)
-    #   E-core 10-13 (Skymont cluster 2, 共享 4MB L2)
-    #   LP E-core 14-15 (共享 2MB L2)
-    # Conductor 管理 publication position counter，影響 tryClaim 尾端延遲，需要 P-core。
-    Write-Host "Starting Standalone Media Driver (P5:conductor, E6:sender, E7:receiver)..."
+    # --- 3. 啟動 獨立式 Media Driver (conductor=P11, sender=E4 backoff, receiver=E5 backoff) ---
+    # Intel Core Ultra 9 285H 實機拓撲 (coreinfo 驗證)：
+    #   P-core  0, 1, 10, 11, 12, 13 (Lion Cove, 3MB private L2 per core, 共享 24MB L3)
+    #   E-core  2, 3, 4, 5            (Skymont cluster 1, 共享 4MB L2, 在 L3)
+    #   E-core  6, 7, 8, 9            (Skymont cluster 2, 共享 4MB L2, 在 L3)
+    #   LP E-core 14, 15              (Skymont LP, SoC tile, 共享 2MB L2, 不在 L3)
+    # Conductor 管理 publication position counter，影響 tryClaim 尾端延遲，放 P11。
+    # IPC-only 下 sender/receiver 本質上 idle，改 Backoff idle strategy 不 busy-spin 燒核，放 E-cluster1。
+    Write-Host "Starting Standalone Media Driver (P11:conductor, E4:sender backoff, E5:receiver backoff)..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -203,24 +204,24 @@ try {
         "-cp", "$aeron_jar",
         "-Daeron.threading.mode=DEDICATED",
         "-Daeron.conductor.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.sender.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BusySpinIdleStrategy",
-        "-Daeron.conductor.affinity=5",
-        "-Daeron.sender.affinity=6",
-        "-Daeron.receiver.affinity=7",
+        "-Daeron.sender.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy",
+        "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy",
+        "-Daeron.conductor.affinity=11",
+        "-Daeron.sender.affinity=4",
+        "-Daeron.receiver.affinity=5",
         "-Daeron.term.buffer.length=64m",
         "-Daeron.ipc.term.buffer.length=256m",
         "-Daeron.dir=$aeron_dir",
         "io.aeron.driver.MediaDriver"
     )
-    $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden
-    $driver.ProcessorAffinity = 50208  # P-core 5 + E-core 6,7,8,9 + LP 14,15
+    $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\stdout_driver.log" -RedirectStandardError "$log_path\error_driver.log"
+    $driver.ProcessorAffinity = 51248  # P11 (conductor busyspin) + E4 (sender backoff) + E5 (receiver backoff) + LP14,15 (背景)
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
-    # --- 4. 併行啟動 Gateway + Matching Engine (全熱路徑在 P-core 0-5) ---
-    Write-Host "Starting Gateway (P1:WalSender P2:ReportRecv P3-4:Netty) + Matching Engine (P-Core 0)..."
+    # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
+    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P12/P13:netty漂移目標) + Matching (P0:AeronReceiver)..."
 
-    # Gateway: WalSender=P1, ReportReceiver=P2, Netty=P3-P4, GC/JIT=E10-11+LP14-15
+    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 希望漂到 P12/P13，GC/JIT=E-cluster1+LP14-15
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
     if ($Diagnose) {
@@ -232,18 +233,18 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,2,3,4",
-        "-Dspot.wal.bypass=false",
+        "-Dspot.affinity.cores=1,10",
+        "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 52254  # P-core 1-4 (WalSender+ReportRecv+Netty) + E-core 10,11 (GC) + LP 14,15 (GC)
+    $g.ProcessorAffinity = 62526  # P1 (bypass-sender) + P10 (report-receiver) + P12, P13 (netty 漂移目標) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    # Matching Engine: Worker=P0, GC/JIT=E8-9+LP14-15
+    # Matching Engine: AeronReceiver Worker=P0, GC/JIT=E-cluster1{2,3,4,5}+LP14,15
     $matching_args = @(
         "@$doc_path\jvm\matching-low-latency.args",
         "-Dspot.affinity.cores=0",
@@ -253,7 +254,7 @@ try {
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 49921  # P-core 0 (worker) + E-core 8,9 (GC) + LP 14,15 (GC)
+    $e.ProcessorAffinity = 49213  # P0 (AeronReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務啟動 (20s)..."
@@ -267,13 +268,13 @@ try {
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
         "60000", "1", "25"
     ) -WorkingDirectory $g_dest -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\prewarm_result.log"
-    $preWarm.ProcessorAffinity = 15360  # E-core 10,11,12,13 (不搶 P-core 熱路徑)
+    $preWarm.ProcessorAffinity = 960  # E-cluster2 {6,7,8,9} (benchmark 獨享，整個 4MB L2)
     $preWarm.WaitForExit()
     Write-Host "Pre-warm 完成，等待穩定 (5s)..."
     Start-Sleep -Seconds 5
 
-    # --- 6. 啟動 Java Benchmark (E-core cluster 2: 10-13，避免搶佔 P-core 0-5) ---
-    Write-Host "Starting Java Benchmark (E-Cores 10-13)..."
+    # --- 6. 啟動 Java Benchmark (E-cluster2 {6-9} 整個 4 核獨享，獨佔 4MB L2) ---
+    Write-Host "Starting Java Benchmark (E-cluster2: E6-E9)..."
     $bench_args = @(
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
@@ -283,7 +284,7 @@ try {
         "60"       # 60秒預熱 (ZGC Warmup 已在 pre-warm 階段完成)
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
-    $bench.ProcessorAffinity = 15360 # E-core 10,11,12,13 (cluster 2)
+    $bench.ProcessorAffinity = 960 # E-cluster2 {6,7,8,9} (benchmark 獨享)
     $bench.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
     Write-Host "Benchmark (PID: $($bench.Id)) 已啟動"
 

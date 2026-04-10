@@ -22,13 +22,14 @@ public class TestVerificationController {
     /** CPU 指標配置：消除平行陣列，保證 name/history/current 三者對齊 */
     private record CpuMetric(String name, long historyKey, long currentKey) {}
     private static final List<CpuMetric> CPU_METRICS = List.of(
-        new CpuMetric("matching_receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER),
-        new CpuMetric("gateway_wal_sender", MetricsKey.CPU_ID_WAL_SENDER,     MetricsKey.CPU_ID_CURRENT_WAL_SENDER),
-        new CpuMetric("netty_boss",        MetricsKey.CPU_ID_NETTY_BOSS,     MetricsKey.CPU_ID_CURRENT_NETTY_BOSS),
-        new CpuMetric("netty_worker_1",    MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1),
-        new CpuMetric("netty_worker_2",    MetricsKey.CPU_ID_NETTY_WORKER_2, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2),
-        new CpuMetric("netty_worker_3",    MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3),
-        new CpuMetric("netty_worker_4",    MetricsKey.CPU_ID_NETTY_WORKER_4, MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4)
+        new CpuMetric("matching_receiver",       MetricsKey.CPU_ID_AERON_RECEIVER,  MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER),
+        new CpuMetric("gateway_wal_sender",      MetricsKey.CPU_ID_WAL_SENDER,      MetricsKey.CPU_ID_CURRENT_WAL_SENDER),
+        new CpuMetric("gateway_report_receiver", MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER),
+        new CpuMetric("netty_boss",              MetricsKey.CPU_ID_NETTY_BOSS,      MetricsKey.CPU_ID_CURRENT_NETTY_BOSS),
+        new CpuMetric("netty_worker_1",          MetricsKey.CPU_ID_NETTY_WORKER_1,  MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_1),
+        new CpuMetric("netty_worker_2",          MetricsKey.CPU_ID_NETTY_WORKER_2,  MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_2),
+        new CpuMetric("netty_worker_3",          MetricsKey.CPU_ID_NETTY_WORKER_3,  MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_3),
+        new CpuMetric("netty_worker_4",          MetricsKey.CPU_ID_NETTY_WORKER_4,  MetricsKey.CPU_ID_CURRENT_NETTY_WORKER_4)
     );
 
     @GetMapping("/metrics/tps")
