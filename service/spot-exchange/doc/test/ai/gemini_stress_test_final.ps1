@@ -234,7 +234,7 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,10,12,6",
+        "-Dspot.affinity.cores=1,10,12",
         "-Dspot.wal.bypass=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -242,7 +242,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 54398  # P1 (bypass-sender) + P10 (report-receiver) + P12 (netty_worker_1) + E6 (netty_worker_2) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
+    $g.ProcessorAffinity = 54334  # P1 (bypass-sender) + P10 (report-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: AeronReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15

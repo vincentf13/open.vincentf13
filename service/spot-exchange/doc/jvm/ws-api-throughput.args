@@ -48,7 +48,7 @@
 -Xmx4G
 -Xlog:gc+init
 -Xlog:pagesize
--XX:MaxDirectMemorySize=4G
+-XX:MaxDirectMemorySize=2G
 -XX:+AlwaysPreTouch
 # Large Pages：32GB 機器上物理記憶體碎片化導致 4G 大頁分配頻繁失敗。
 # 需 64GB+ 機器或更小的 heap 才能穩定使用。
@@ -85,4 +85,4 @@
 -Dfile.encoding=UTF-8
 -Djava.awt.headless=true
 -Djdk.nio.maxCachedBufferSize=2097152
--Dnetty.worker.count=2
+-Dnetty.worker.count=1

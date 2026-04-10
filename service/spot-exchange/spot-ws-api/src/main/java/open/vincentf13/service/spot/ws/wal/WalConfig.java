@@ -17,7 +17,13 @@ public class WalConfig {
     private static final int RING_BUFFER_SIZE = 1 << 16; // 65536
 
     @Bean
-    public RingBuffer<WalEvent> walRingBuffer() {
+    public RingBuffer<WalEvent> walRingBuffer(@org.springframework.beans.factory.annotation.Value("${netty.worker.count:2}") int workerCount) {
+        if (workerCount == 1) {
+            return RingBuffer.createSingleProducer(
+                    WalEvent::new,
+                    RING_BUFFER_SIZE,
+                    new BusySpinWaitStrategy());
+        }
         return RingBuffer.createMultiProducer(
                 WalEvent::new,
                 RING_BUFFER_SIZE,
