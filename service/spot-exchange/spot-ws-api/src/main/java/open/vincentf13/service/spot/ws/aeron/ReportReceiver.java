@@ -54,10 +54,15 @@ public class ReportReceiver extends Worker {
     private final int[] channelCounts = new int[AeronConstants.AERON_POLL_LIMIT * 2];
     private final ByteBuf[][] channelBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2][AeronConstants.AERON_POLL_LIMIT * 2];
 
-    public ReportReceiver(@SuppressWarnings("unused") Aeron aeron, WsSessionManager sessionManager) {
+    public ReportReceiver(@SuppressWarnings("unused") Aeron aeron,
+                          WsSessionManager sessionManager,
+                          @SuppressWarnings("unused") GatewaySender gatewaySender) {
         super("report-receiver",
               MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER,
               MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE);
+        // gatewaySender 注入只是為了強制 @PostConstruct 順序：
+        // GatewaySender (或 WalSender) 先 bind 到 P-core pool 第一個 slot，
+        // ReportReceiver 再 bind 到第二個 slot。確保 WAL 模式下 WalSender 拿 P1。
         this.sessionManager = sessionManager;
     }
 

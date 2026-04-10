@@ -23,6 +23,7 @@ public abstract class Worker implements Runnable {
     private final String workerName;
     private final long cpuIdKey, currentCpuIdKey, dutyCycleKey;
     private Thread thread;
+    private volatile boolean boundReady = false;
 
     private static final int SAMPLE_MASK = 0x7F;   // 每 128 次採樣一次
     private static final IdleStrategy IDLE = new BusySpinIdleStrategy();
@@ -42,7 +43,13 @@ public abstract class Worker implements Runnable {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, workerName);
             thread.start();
-            log.info("Worker {} started", workerName);
+            // 阻塞等 acquireAndBind 完成，確保 Worker pin 順序可控
+            // 依賴此 Worker 的下游 bean 在 @PostConstruct 時才開始自己的 bind
+            long deadline = System.nanoTime() + 1_000_000_000L; // 1s
+            while (!boundReady && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            log.info("Worker {} started (bound={})", workerName, boundReady);
         }
     }
 
@@ -61,6 +68,7 @@ public abstract class Worker implements Runnable {
 
     public void run() {
         AffinityUtil.acquireAndBind();
+        boundReady = true;  // 發布綁定完成給 start() 呼叫者
         onStart();
 
         lastReportNanos = System.nanoTime();
