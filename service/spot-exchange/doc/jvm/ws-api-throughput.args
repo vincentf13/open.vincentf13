@@ -43,7 +43,7 @@
 -XX:-ZProactive
 
 # --- 記憶體配置 (2GB Heap) ---
-# 32GB 機器 + Large Pages + Chronicle mlock 限制下，4GB 是大頁分配的上限。
+# 32GB 機器 + Large Pages + Chronicle pre-touch 限制下，4GB 是大頁分配的上限。
 -Xms2G
 -Xmx2G
 -Xlog:gc+init

@@ -14,13 +14,10 @@ import open.vincentf13.service.spot.infra.aeron.AeronConstants;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.chronicle.WalField;
 import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
-import open.vincentf13.service.spot.infra.util.PreTouchUtil;
 import open.vincentf13.service.spot.ws.wal.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -38,14 +35,11 @@ import static open.vincentf13.service.spot.infra.Constants.*;
 @ConditionalOnProperty(name = "spot.wal.bypass", havingValue = "false", matchIfMissing = true)
 public class WalSender extends GatewaySender {
 
-    private static final boolean PRETOUCH_ENABLED = Boolean.parseBoolean(System.getProperty("wal.pretouch", "true"));
-
     private final ChronicleQueue wal;
     private ExcerptAppender appender;
     private ExcerptTailer replayTailer;
     private long resumeSkipIndex = Long.MIN_VALUE;
     private boolean replaying = false;
-    private Thread preTouchDaemon;
 
     public WalSender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
         super("wal-sender",
@@ -59,68 +53,8 @@ public class WalSender extends GatewaySender {
 
     @Override
     protected final void onSenderStart() {
-        PreTouchUtil.touchDirectory(new File(ChronicleMapEnum.WAL_BASE_DIR));
         this.appender = wal.acquireAppender();
         this.replayTailer = wal.createTailer();
-        if (PRETOUCH_ENABLED) {
-            startPreTouchDaemon();
-            log.info("[WAL-SENDER] pretouch daemon enabled");
-        } else {
-            log.info("[WAL-SENDER] pretouch daemon disabled (wal.pretouch=false)");
-        }
-    }
-
-    /**
-     * 背景 pretouch daemon：透過 RandomAccessFile.read() 將 WAL 檔案的新頁面
-     * 預讀入 OS page cache，讓 Chronicle Queue 的 mmap 訪問時不觸發 page fault。
-     *
-     * 不使用 FileChannel.map（Windows 會與 CQ 的 mmap 搶文件鎖），
-     * 也不使用 CQ Enterprise 的 pretouch()（開源版無效）。
-     * RandomAccessFile.read() 走標準 I/O 路徑，與 mmap 共享同一個 page cache，
-     * 且不需要任何文件鎖。
-     */
-    private void startPreTouchDaemon() {
-        File walDir = new File(ChronicleMapEnum.WAL_BASE_DIR);
-        preTouchDaemon = Thread.ofPlatform().daemon().name("wal-pretouch").start(() -> {
-            long lastTouchedSize = 0;
-            byte[] buf = new byte[1];
-            while (running.get()) {
-                try { Thread.sleep(50); } catch (InterruptedException e) { break; }
-                try {
-                    lastTouchedSize = pretouchNewPages(walDir, lastTouchedSize, buf);
-                } catch (Exception ignored) {}
-            }
-        });
-    }
-
-    /**
-     * 掃描 WAL 目錄，對自上次以來新增的檔案區域逐頁讀取，
-     * 觸發 OS 將對應的磁碟頁面載入 page cache。
-     *
-     * @return 本次掃描後的最大檔案大小，供下次增量比較
-     */
-    private static long pretouchNewPages(File dir, long lastTouchedSize, byte[] buf) {
-        long maxSize = lastTouchedSize;
-        File[] subDirs = dir.listFiles(File::isDirectory);
-        if (subDirs == null) return maxSize;
-        for (File sub : subDirs) {
-            File[] cq4Files = sub.listFiles((d, n) -> n.endsWith(".cq4"));
-            if (cq4Files == null) continue;
-            for (File f : cq4Files) {
-                long len = f.length();
-                if (len <= lastTouchedSize) continue;
-                try (RandomAccessFile raf = new RandomAccessFile(f, "r")) {
-                    // 只觸碰新增區域，避免重複讀取已快取的頁面
-                    long start = (lastTouchedSize > 0) ? lastTouchedSize : 0;
-                    for (long pos = start; pos < len; pos += 4096) {
-                        raf.seek(pos);
-                        raf.read(buf);
-                    }
-                } catch (Exception ignored) {}
-                if (len > maxSize) maxSize = len;
-            }
-        }
-        return maxSize;
     }
 
     // ===== WAITING：只寫 WAL (防 Disruptor 堆積) =====
@@ -247,6 +181,5 @@ public class WalSender extends GatewaySender {
     @Override
     protected final void onSenderStop() {
         try { poller.poll(walOnlyHandler); } catch (Exception e) { log.warn("[WAL-SENDER] drain failed", e); }
-        if (preTouchDaemon != null) preTouchDaemon.interrupt();
     }
 }

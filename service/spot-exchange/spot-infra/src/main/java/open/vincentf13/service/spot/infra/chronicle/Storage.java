@@ -143,12 +143,8 @@ public class Storage {
         long pages = PreTouchUtil.touchDirectory(mapDir) + PreTouchUtil.touchDirectory(walDir);
         long touchMs = (System.nanoTime() - t0) / 1_000_000;
 
-        // mlock：嘗試鎖定至實體 RAM，防止 swap（需 OS 權限，失敗時 graceful degrade）
-        long locked = PreTouchUtil.mlockDirectory(mapDir) + PreTouchUtil.mlockDirectory(walDir);
-        long totalMs = (System.nanoTime() - t0) / 1_000_000;
-
-        log.info(">>> [STORAGE] Pre-touch {} 頁 ({}MB, {}ms), mlock {} 頁 ({}ms)",
-                pages, (pages * 4096) >> 20, touchMs, locked, totalMs - touchMs);
+        log.info(">>> [STORAGE] Pre-touch {} 頁 ({}MB, {}ms)",
+                pages, (pages * 4096) >> 20, touchMs);
     }
 
     public void close() {

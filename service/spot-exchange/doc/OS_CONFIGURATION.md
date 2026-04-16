@@ -81,7 +81,7 @@ Disable-MMAgent -MemoryCompression  # 需重啟
 | Matching / Gateway | **RealTime** |
 | Aeron Driver / Benchmark | **High** |
 
-> **不要用** `Process.MinWorkingSet = Process.MaxWorkingSet` 鎖 Working Set。新進程 `MaxWorkingSet` 預設 ~1.4MB，反而限制記憶體。Large Pages + mlock 已足夠。
+> **不要用** `Process.MinWorkingSet = Process.MaxWorkingSet` 鎖 Working Set。新進程 `MaxWorkingSet` 預設 ~1.4MB，反而限制記憶體。Large Pages + 關閉 swap + pre-touch 已足夠。
 
 ---
 
@@ -94,6 +94,6 @@ Disable-MMAgent -MemoryCompression  # 需重啟
 - Matching Engine：order book working set 小且反覆存取，TLB 壓力本來就低
 
 Windows 大頁分配是 **all-or-nothing**，且不會背景合併碎片。啟動順序：
-1. Matching Engine 先啟動（不用大頁）+ Chronicle mlock 完成
+1. Matching Engine 先啟動（不用大頁）+ Chronicle pre-touch 完成
 2. **Standby List 三階段清理**（EmptyWorkingSets → FlushModified → PurgeStandby）
 3. Gateway 啟動，拿到乾淨的大頁池

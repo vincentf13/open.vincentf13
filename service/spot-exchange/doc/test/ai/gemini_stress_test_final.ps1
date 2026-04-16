@@ -162,11 +162,8 @@ try {
 
     Safe-Remove $aeron_dir
 
-    # --- 1.1 檔案預分配 (消除磁碟擴展延遲) ---
+    # --- 1.1 建立資料目錄 ---
     if (!(Test-Path $aeron_dir)) { New-Item -ItemType Directory -Force $aeron_dir }
-    Write-Host "正在執行磁碟空間預分配 (WAL & State: 1GB)..."
-    fsutil file createnew "$aeron_dir\wal-spot-exchange.dat" 1073741824 | Out-Null
-    fsutil file createnew "$aeron_dir\matching-engine-state.dat" 1073741824 | Out-Null
     # 建立 map / wal 目錄避免 IOException
     New-Item -ItemType Directory -Force "$aeron_dir\map" | Out-Null
     New-Item -ItemType Directory -Force "$aeron_dir\wal" | Out-Null
@@ -241,7 +238,6 @@ try {
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=1,10,12",
         "-Dspot.wal.bypass=false",
-        "-Dwal.pretouch=true",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
