@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.infra.chronicle;
 
 import lombok.extern.slf4j.Slf4j;
+import net.openhft.chronicle.bytes.SyncMode;
 import net.openhft.chronicle.map.ChronicleMap;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
@@ -132,6 +133,7 @@ public class Storage {
         return SingleChronicleQueueBuilder.single(dir + q.getPath())
                 .rollCycle(net.openhft.chronicle.queue.RollCycles.FAST_DAILY)
                 .blockSize(512 << 20) // 512MB 預分配塊，覆蓋整個 benchmark 週期避免 block 切換 page fault
+                .syncMode(SyncMode.SYNC) // 每筆 appender close 時 msync+fsync，保證 crash durability
                 .build();
     }
 
