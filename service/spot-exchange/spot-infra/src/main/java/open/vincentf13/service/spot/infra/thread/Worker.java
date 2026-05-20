@@ -5,6 +5,8 @@ import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -23,7 +25,7 @@ public abstract class Worker implements Runnable {
     private final String workerName;
     private final long cpuIdKey, currentCpuIdKey, dutyCycleKey;
     private Thread thread;
-    private volatile boolean boundReady = false;
+    private final CountDownLatch boundLatch = new CountDownLatch(1);
 
     private static final int SAMPLE_MASK = 0x7F;   // 每 128 次採樣一次
     private static final IdleStrategy IDLE = new BusySpinIdleStrategy();
@@ -43,13 +45,17 @@ public abstract class Worker implements Runnable {
         if (running.compareAndSet(false, true)) {
             thread = new Thread(this, workerName);
             thread.start();
-            // 阻塞等 acquireAndBind 完成，確保 Worker pin 順序可控
-            // 依賴此 Worker 的下游 bean 在 @PostConstruct 時才開始自己的 bind
-            long deadline = System.nanoTime() + 1_000_000_000L; // 1s
-            while (!boundReady && System.nanoTime() < deadline) {
-                Thread.onSpinWait();
+            // 阻塞等 acquireAndBind 完成，確保 Worker pin 順序可控（依賴此 Worker 的下游 bean
+            // 才開始自己的 bind）。**必須用 park-based 等待，不能 busy-spin** — Spring 主執行緒
+            // 若 spin 100% 占 CPU，剛生出的 Worker thread 在 Windows + RealTime priority 下會被
+            // 餓死拿不到 CPU 跑 acquireAndBind，5s deadline 也會 timeout，pool 順序就會亂。
+            try {
+                boolean bound = boundLatch.await(5, TimeUnit.SECONDS);
+                log.info("Worker {} started (bound={})", workerName, bound);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Worker {} start interrupted", workerName);
             }
-            log.info("Worker {} started (bound={})", workerName, boundReady);
         }
     }
 
@@ -68,7 +74,7 @@ public abstract class Worker implements Runnable {
 
     public void run() {
         AffinityUtil.acquireAndBind();
-        boundReady = true;  // 發布綁定完成給 start() 呼叫者
+        boundLatch.countDown();  // 發布綁定完成給 start() 呼叫者
         onStart();
 
         lastReportNanos = System.nanoTime();

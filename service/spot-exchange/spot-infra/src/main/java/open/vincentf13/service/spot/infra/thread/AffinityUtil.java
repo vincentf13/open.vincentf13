@@ -7,7 +7,9 @@ import open.vincentf13.service.spot.infra.metrics.StaticMetricsHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,18 +25,23 @@ public class AffinityUtil {
     private static final Logger log = LoggerFactory.getLogger(AffinityUtil.class);
     private static final AtomicInteger assignedCount = new AtomicInteger(0);
     private static final ThreadLocal<Boolean> isBound = ThreadLocal.withInitial(() -> false);
-    private static final BitSet DEDICATED_CORES = initDedicatedCores();
+    /**
+     * 有序 pool — slot[i] 就是 spot.affinity.cores 第 i 個 core。
+     * 從前用 BitSet 是 bug：nextSetBit() 按 bit index 升序遍歷，會把
+     * "1,10,5,2,3,4" 視為 "1,2,3,4,5,10"，pool 順序與 user 預期不符。
+     */
+    private static final int[] DEDICATED_CORES = initDedicatedCores();
 
-    private static BitSet initDedicatedCores() {
+    private static int[] initDedicatedCores() {
         String cores = System.getProperty("spot.affinity.cores");
         if (cores == null || cores.isEmpty()) return null;
-        BitSet mask = new BitSet();
+        List<Integer> list = new ArrayList<>();
         for (String s : cores.split(",")) {
-            try {
-                mask.set(Integer.parseInt(s.trim()));
-            } catch (NumberFormatException ignored) {}
+            try { list.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
         }
-        return mask;
+        int[] arr = new int[list.size()];
+        for (int i = 0; i < arr.length; i++) arr[i] = list.get(i);
+        return arr;
     }
 
     /** 自動分配並綁定一個可用核心，回傳核心 ID (-1 表示失敗) */
@@ -42,28 +49,33 @@ public class AffinityUtil {
         if (isBound.get()) return -1;
         try {
             BitSet processMask = Affinity.getAffinity();
-            BitSet targetPool = processMask;
 
-            // 如果有配置專屬核心範圍，則與進程准許的掩碼取交集
-            if (DEDICATED_CORES != null) {
-                targetPool = (BitSet) DEDICATED_CORES.clone();
-                targetPool.and(processMask);
-            }
-
-            int totalAvailable = targetPool.cardinality();
-            if (totalAvailable <= 0) return -1;
-
+            int targetCore = -1;
             int currentAssigned = assignedCount.getAndIncrement();
-            // 如果是專屬模式且核心已用盡，則不進行綁定，讓其在進程範圍內漂移 (GC 共享區)
-            if (DEDICATED_CORES != null && currentAssigned >= totalAvailable) {
-                log.warn("[AFFINITY] 專屬核心 {} 已用盡，{} 將不進行綁定 (改為自由調度)", DEDICATED_CORES, Thread.currentThread().getName());
-                return -1;
-            }
 
-            int targetIdx = Math.abs(currentAssigned % totalAvailable);
-            int targetCore = -1, currentIdx = 0;
-            for (int i = targetPool.nextSetBit(0); i >= 0; i = targetPool.nextSetBit(i + 1)) {
-                if (currentIdx++ == targetIdx) { targetCore = i; break; }
+            if (DEDICATED_CORES != null) {
+                // 專屬模式：按 spot.affinity.cores 指定的順序消耗 pool slot
+                if (currentAssigned >= DEDICATED_CORES.length) {
+                    log.warn("[AFFINITY] 專屬核心已用盡 (slot#{} >= {})，{} 改為自由調度",
+                            currentAssigned, DEDICATED_CORES.length, Thread.currentThread().getName());
+                    return -1;
+                }
+                int candidate = DEDICATED_CORES[currentAssigned];
+                if (!processMask.get(candidate)) {
+                    log.warn("[AFFINITY] slot#{} core {} 不在進程 mask 內，{} 改為自由調度",
+                            currentAssigned, candidate, Thread.currentThread().getName());
+                    return -1;
+                }
+                targetCore = candidate;
+            } else {
+                // 無專屬池：在進程 mask 內按 bit 升序輪轉
+                int totalAvailable = processMask.cardinality();
+                if (totalAvailable <= 0) return -1;
+                int targetIdx = Math.abs(currentAssigned % totalAvailable);
+                int currentIdx = 0;
+                for (int i = processMask.nextSetBit(0); i >= 0; i = processMask.nextSetBit(i + 1)) {
+                    if (currentIdx++ == targetIdx) { targetCore = i; break; }
+                }
             }
 
             if (targetCore >= 0) {
@@ -77,7 +89,7 @@ public class AffinityUtil {
                     Affinity.setAffinity(next);
                 }
                 isBound.set(true);
-                log.info("[AFFINITY] {} 鎖定專屬核心: {}", Thread.currentThread().getName(), targetCore);
+                log.info("[AFFINITY] slot#{} thread={} -> core {}", currentAssigned, Thread.currentThread().getName(), targetCore);
                 return targetCore;
             }
         } catch (Exception e) { log.error("[AFFINITY] 綁定失敗: {}", e.getMessage()); }
