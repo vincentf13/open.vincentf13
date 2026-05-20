@@ -1,6 +1,7 @@
 package open.vincentf13.service.spot.matching.engine;
 
 import net.openhft.chronicle.map.ChronicleMap;
+import open.vincentf13.service.spot.infra.chronicle.ChronicleMapUtil;
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.infra.util.DecimalUtil;
@@ -84,7 +85,7 @@ public class Ledger implements DiskSink {
         if (!dB.isEmpty()) {
             dB.forEach((combinedKey, snap) -> {
                 flusherBalanceKey.set(combinedKey >>> 32, (int) (combinedKey & 0xFFFFFFFFL));
-                balancesDiskMap.put(flusherBalanceKey, snap);
+                ChronicleMapUtil.putNoRead(balancesDiskMap, flusherBalanceKey, snap);
                 retPool.addLast(snap);
             });
             dB.clear();
@@ -95,7 +96,7 @@ public class Ledger implements DiskSink {
                 iter.next();
                 flusherMaskKey.set(iter.getLongKey());
                 flusherMaskValue.set(iter.getLongValue());
-                userAssetBitmaskDiskMap.put(flusherMaskKey, flusherMaskValue);
+                ChronicleMapUtil.putNoRead(userAssetBitmaskDiskMap, flusherMaskKey, flusherMaskValue);
             }
             dM.clear();
         }

@@ -2,8 +2,7 @@ package open.vincentf13.service.spot.matching.engine;
 
 import lombok.extern.slf4j.Slf4j;
 import net.openhft.chronicle.map.ChronicleMap;
-import net.openhft.chronicle.map.ExternalMapQueryContext;
-import net.openhft.chronicle.map.MapEntry;
+import open.vincentf13.service.spot.infra.chronicle.ChronicleMapUtil;
 import open.vincentf13.service.spot.infra.chronicle.LongValue;
 import open.vincentf13.service.spot.infra.chronicle.Storage;
 import open.vincentf13.service.spot.model.Order;
@@ -315,7 +314,7 @@ public class OrderBook {
             for (int i = 0, size = dO.size(); i < size; i++) {
                 Order o = dO.get(i);
                 fkO.set(o.getOrderId());
-                putNoRead(ordersDisk, fkO, o); // 避免 ChronicleMap.put 讀舊值觸發 reflection alloc Order
+                ChronicleMapUtil.putNoRead(ordersDisk, fkO, o); // 避免 ChronicleMap.put 讀舊值觸發 reflection alloc Order
                 retOrderPool.addLast(o);
             }
             dO.clear();
@@ -324,7 +323,7 @@ public class OrderBook {
             for (int i = 0, size = dT.size(); i < size; i++) {
                 Trade t = dT.get(i);
                 fkT.set(t.getTradeId());
-                putNoRead(tradesDisk, fkT, t);
+                ChronicleMapUtil.putNoRead(tradesDisk, fkT, t);
                 retTradePool.addLast(t);
             }
             dT.clear();
@@ -350,25 +349,6 @@ public class OrderBook {
         drainingOrders = null;
     }
 
-    /**
-     * ChronicleMap put 的 zero-alloc 版本：跳過讀舊值。
-     *
-     * 標準 Map.put 契約必須返回舊值；ChronicleMap 為符合契約，會 reflectively new 一個 value
-     * 然後 readMarshallable 進去 → 我們不在乎舊值卻被迫吃 alloc。
-     * 用 queryContext + replaceValue/insert 直接寫，跳過 entry.value().get()。
-     */
-    private static <V extends net.openhft.chronicle.bytes.BytesMarshallable> void putNoRead(
-            ChronicleMap<LongValue, V> map, LongValue key, V value) {
-        try (ExternalMapQueryContext<LongValue, V, ?> ctx = map.queryContext(key)) {
-            ctx.updateLock().lock();
-            MapEntry<LongValue, V> entry = ctx.entry();
-            if (entry != null) {
-                ctx.replaceValue(entry, ctx.wrapValueAsData(value));
-            } else {
-                ctx.insert(ctx.absentEntry(), ctx.wrapValueAsData(value));
-            }
-        }
-    }
 
 
     // ========== Accessors ==========
