@@ -43,7 +43,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 | Core | 類型 | 角色 | Pin 方式 | CPU 使用 |
 |---|---|---|---|---|
 | **P0** | P | **(空)** 留給 OS DPC/ISR | — | OS only |
-| **P1** | P | gateway bypass-sender (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
+| **P1** | P | gateway gateway-sender (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
 | **E2** | E cluster1 | gateway 背景 / GC / JIT | 進程 mask 內漂移 | 低 |
 | **E3** | E cluster1 | gateway 背景 / GC / JIT | 同上 | 低 |
 | **E4** | E cluster1 | driver Aeron sender (Backoff idle) | `aeron.sender.affinity=4` | ~0%（IPC 無 UDP 工作） |
@@ -55,7 +55,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 | **P10** | P | gateway report-receiver (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
 | **P11** | P | driver Aeron conductor (BusySpin idle) | `aeron.conductor.affinity=11` | 100% busy-spin |
 | **P12** | P | gateway netty worker (Worker pool, pinned) | `spot.affinity.cores=1,10,12` | event-loop |
-| **P13** | P | matching AeronReceiver (Worker, busy-spin) | `spot.affinity.cores=13` (matching process) | 100% busy-spin |
+| **P13** | P | matching MatchingReceiver (Worker, busy-spin) | `spot.affinity.cores=13` (matching process) | 100% busy-spin |
 | **LP14** | LP | 所有 Java process 共享 GC / 背景 | 多個 process mask 交集 | 低，偶發 GC |
 | **LP15** | LP | 所有 Java process 共享 GC / 背景 | 同上 | 低，偶發 GC |
 
@@ -108,8 +108,8 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 
 ### 1. 熱 busy-spin 執行緒只上 P-core
 6 個 P-core 分配給：
-1. `matching AeronReceiver`（P13）— 撮合熱路徑
-2. `gateway bypass-sender`（P1）— Netty → Aeron 熱路徑
+1. `matching MatchingReceiver`（P13）— 撮合熱路徑
+2. `gateway gateway-sender`（P1）— Netty → Aeron 熱路徑
 3. `gateway report-receiver`（P10）— Aeron → Netty 回路徑
 4. `driver Aeron conductor`（P11）— Aeron 位點計數器
 5. `gateway netty worker`（P12）— 部分 netty worker pinned
@@ -142,14 +142,14 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 ### 坑 2：Matching worker 在 P0 吃 Windows DPC
 **症狀**：伺服器內部 `transport p99 = 243μs`，但 `gateway_total p99 = 3μs`、`matching p99 = 2μs`、`report_delivery p99 = 4μs`。**240μs 不知去向**。
 
-**原因**：transport 計時是 `Netty 收到` → `matching engine 收到`。中間的「Aeron IPC 傳輸 + matching AeronReceiver poll dispatch」本應 <1μs，但 matching worker 在 P0 上，被 Windows ISR/DPC 週期性搶走 ~240μs，期間 gateway 累積的訊息在 term buffer 排隊，最後一筆顯示 p99=240μs。
+**原因**：transport 計時是 `Netty 收到` → `matching engine 收到`。中間的「Aeron IPC 傳輸 + matching MatchingReceiver poll dispatch」本應 <1μs，但 matching worker 在 P0 上，被 Windows ISR/DPC 週期性搶走 ~240μs，期間 gateway 累積的訊息在 term buffer 排隊，最後一筆顯示 p99=240μs。
 
 **修復**：matching worker 從 P0 搬到 P13，transport p99 從 243μs → **14μs**（-94%）。詳見 commit `e948acd0`。
 
 ### 坑 3：Netty workers 沒透過 AffinityUtil pinned
 **症狀**：就算 matching 離開 P0，benchmark RTT 改善有限。
 
-**原因**：gateway `spot.affinity.cores=1,10` 只給 2 個 core，被 bypass-sender 和 report-receiver 鎖光。netty workers 呼叫 `AffinityUtil.acquireAndBind()` 時 pool 已空，**fall back 到「自由調度」** → 在 gateway process mask 內漂移，容易落到 P0（還在 mask 內）或 E-core。
+**原因**：gateway `spot.affinity.cores=1,10` 只給 2 個 core，被 gateway-sender 和 report-receiver 鎖光。netty workers 呼叫 `AffinityUtil.acquireAndBind()` 時 pool 已空，**fall back 到「自由調度」** → 在 gateway process mask 內漂移，容易落到 P0（還在 mask 內）或 E-core。
 
 **修復**：
 1. gateway process mask 排除 P0

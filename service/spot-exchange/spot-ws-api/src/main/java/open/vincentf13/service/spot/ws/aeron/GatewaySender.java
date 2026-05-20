@@ -79,7 +79,7 @@ public class GatewaySender extends Worker {
 
     @org.springframework.beans.factory.annotation.Autowired
     public GatewaySender(@SuppressWarnings("unused") io.aeron.Aeron aeron, RingBuffer<WalEvent> ringBuffer) {
-        this("bypass-sender",
+        this("gateway-sender",
              MetricsKey.CPU_ID_WAL_SENDER, MetricsKey.CPU_ID_CURRENT_WAL_SENDER,
              MetricsKey.GATEWAY_WAL_SENDER_DUTY_CYCLE, ringBuffer);
     }

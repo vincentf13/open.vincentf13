@@ -31,7 +31,7 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  */
 @Slf4j
 @Component
-public class AeronReceiver extends Worker {
+public class MatchingReceiver extends Worker {
     private static final RollCycles ROLL_CYCLE = RollCycles.FAST_DAILY;
 
     private final Engine engine;
@@ -50,7 +50,7 @@ public class AeronReceiver extends Worker {
     private static final long STATE_CHECK_MASK = 0xFF; // 每 256 次 iter 檢查一次 state
 
     /** @param aeron 僅用於建立 Spring Bean 依賴順序 */
-    public AeronReceiver(@SuppressWarnings("unused") io.aeron.Aeron aeron, Engine engine) {
+    public MatchingReceiver(@SuppressWarnings("unused") io.aeron.Aeron aeron, Engine engine) {
         super("matching-receiver", MetricsKey.CPU_ID_AERON_RECEIVER, MetricsKey.CPU_ID_CURRENT_AERON_RECEIVER, MetricsKey.MATCHING_AERON_RECEVIER_WORKER_DUTY_CYCLE);
         this.engine = engine;
     }
@@ -68,7 +68,7 @@ public class AeronReceiver extends Worker {
         fragmentHandler = this::onFragment;
 
         progress.setLastProcessedSeq(engine.getNetworkProgress().getLastProcessedSeq());
-        log.info("AeronReceiver 啟動，進度: {}，等待恢復...", progress.getLastProcessedSeq());
+        log.info("MatchingReceiver 啟動，進度: {}，等待恢復...", progress.getLastProcessedSeq());
         sendResume();
     }
 
@@ -84,7 +84,7 @@ public class AeronReceiver extends Worker {
                     currentState = AeronState.WAITING;
                 } else if (lastMsgReceivedTime > 0
                         && Clock.now() - lastMsgReceivedTime > AeronConstants.RECEIVER_STALL_TIMEOUT_MS) {
-                    log.warn("AeronReceiver 超時 {}ms 未收到數據，重置為 WAITING 以重發 RESUME", AeronConstants.RECEIVER_STALL_TIMEOUT_MS);
+                    log.warn("MatchingReceiver 超時 {}ms 未收到數據，重置為 WAITING 以重發 RESUME", AeronConstants.RECEIVER_STALL_TIMEOUT_MS);
                     currentState = AeronState.WAITING;
                 }
             }
@@ -122,7 +122,7 @@ public class AeronReceiver extends Worker {
                 StaticMetricsHolder.addCounter(MetricsKey.AERON_DROPPED_COUNT, 1);
                 return;
             }
-            log.info("AeronReceiver 對齊成功，seq={}, expected={}", seq, expected);
+            log.info("MatchingReceiver 對齊成功，seq={}, expected={}", seq, expected);
             currentState = AeronState.SENDING;
         }
 
