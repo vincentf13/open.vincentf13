@@ -184,21 +184,14 @@ public class ReportReceiver extends Worker {
             channelBufs[idx][channelCounts[idx]++] = buf;
         }
 
+        // 每個 unique channel：直接把該 channel 的 bufs 交給 sendMerged 合併並送出（含 release）
         for (int i = 0; i < uniqueCount; i++) {
             Channel ch = uniqueChannels[i];
             int chCount = channelCounts[i];
-
-            int totalLen = 0;
-            for (int j = 0; j < chCount; j++) totalLen += channelBufs[i][j].readableBytes();
-            ByteBuf combined = ALLOC.directBuffer(totalLen);
-            for (int j = 0; j < chCount; j++) {
-                combined.writeBytes(channelBufs[i][j]);
-                channelBufs[i][j].release();
-                channelBufs[i][j] = null;
-            }
-            uniqueChannels[i] = null;
-
             sendMerged(ch, channelBufs[i], chCount);
+            // 清陣列 slot（sendMerged 已 release buf；這裡只清引用避免持參）
+            for (int j = 0; j < chCount; j++) channelBufs[i][j] = null;
+            uniqueChannels[i] = null;
         }
         clearRefs(count);
     }
@@ -211,35 +204,25 @@ public class ReportReceiver extends Worker {
         for (int i = 0; i < count; i++) totalLen += bufs[i].readableBytes();
 
         if (totalLen <= MAX_FRAME_SIZE) {
-            // 所有 report 合併為單一 frame
             ByteBuf combined = ALLOC.directBuffer(totalLen);
             for (int i = 0; i < count; i++) { combined.writeBytes(bufs[i]); bufs[i].release(); }
-            ch.eventLoop().execute(() -> ch.writeAndFlush(new BinaryWebSocketFrame(combined)));
+            // writeAndFlush 自動偵測 isInEventLoop，不在則 schedule，避免我們手 lambda 多一次分配
+            ch.writeAndFlush(new BinaryWebSocketFrame(combined));
         } else {
-            // 分片：每個 frame 不超過 MAX_FRAME_SIZE
+            // 分片：每個 frame 不超過 MAX_FRAME_SIZE，逐一 write，最後 flush
             ByteBuf current = ALLOC.directBuffer(MAX_FRAME_SIZE);
-            // 收集所有 frame 到陣列供 lambda 使用
-            ByteBuf[] frames = new ByteBuf[(totalLen / MAX_FRAME_SIZE) + 2];
-            int frameIdx = 0;
             for (int i = 0; i < count; i++) {
                 int reportLen = bufs[i].readableBytes();
                 if (current.readableBytes() + reportLen > MAX_FRAME_SIZE && current.readableBytes() > 0) {
-                    frames[frameIdx++] = current;
+                    ch.write(new BinaryWebSocketFrame(current));
                     current = ALLOC.directBuffer(MAX_FRAME_SIZE);
                 }
                 current.writeBytes(bufs[i]);
                 bufs[i].release();
             }
-            if (current.readableBytes() > 0) frames[frameIdx++] = current; else current.release();
-            int total = frameIdx;
-            ByteBuf[] finalFrames = new ByteBuf[total];
-            System.arraycopy(frames, 0, finalFrames, 0, total);
-            ch.eventLoop().execute(() -> {
-                for (int i = 0; i < finalFrames.length; i++) {
-                    ch.write(new BinaryWebSocketFrame(finalFrames[i]));
-                }
-                ch.flush();
-            });
+            if (current.readableBytes() > 0) ch.write(new BinaryWebSocketFrame(current));
+            else current.release();
+            ch.flush();
         }
     }
 
