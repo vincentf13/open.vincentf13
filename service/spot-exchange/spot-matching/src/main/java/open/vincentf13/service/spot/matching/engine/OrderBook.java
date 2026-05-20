@@ -93,10 +93,13 @@ public class OrderBook {
     // 每-緩衝 snap 物件池（零分配重用）
     // 設計：每個緩衝在 active 時由 matching thread 借取；成為 draining 後由 flusher thread 獨佔寫回。
     // 歸還與借取是隔離的（同一時刻只有一個 thread 訪問 buffer 的 pool），無需同步。
-    private final ArrayDeque<Order> orderSnapPoolA = new ArrayDeque<>(16384);
-    private final ArrayDeque<Order> orderSnapPoolB = new ArrayDeque<>(16384);
-    private final ArrayDeque<Trade> tradePoolA = new ArrayDeque<>(16384);
-    private final ArrayDeque<Trade> tradePoolB = new ArrayDeque<>(16384);
+    // 容量 65536 + 預填：60K orders/sec × 2.5 snap/order = 150K snap/sec, flusher 20ms tick = 3000 snap/tick；
+    // pool 65536 提供 ~22 tick 緩衝，吸收 GC self-feeding 時 flusher 延遲；預填避免暖機階段 burst 分配。
+    private static final int SNAP_POOL_CAPACITY = 65536;
+    private final ArrayDeque<Order> orderSnapPoolA = new ArrayDeque<>(SNAP_POOL_CAPACITY);
+    private final ArrayDeque<Order> orderSnapPoolB = new ArrayDeque<>(SNAP_POOL_CAPACITY);
+    private final ArrayDeque<Trade> tradePoolA = new ArrayDeque<>(SNAP_POOL_CAPACITY);
+    private final ArrayDeque<Trade> tradePoolB = new ArrayDeque<>(SNAP_POOL_CAPACITY);
 
     // 撮合結構
     private final Long2ObjectRBTreeMap<Deque<Order>> bids = new Long2ObjectRBTreeMap<>((LongComparator) (k1, k2) -> Long.compare(k2, k1));
@@ -115,6 +118,13 @@ public class OrderBook {
         this.symbolId = symbolId;
         this.baseAssetId = baseAssetId;
         this.quoteAssetId = quoteAssetId;
+        // 預填 snap pool — 確保穩態下 syncOrder 永遠走 pool 路徑、不再 new Order()
+        for (int i = 0; i < SNAP_POOL_CAPACITY; i++) {
+            orderSnapPoolA.addLast(new Order());
+            orderSnapPoolB.addLast(new Order());
+            tradePoolA.addLast(new Trade());
+            tradePoolB.addLast(new Trade());
+        }
     }
 
     // ========== 撮合核心 ==========
