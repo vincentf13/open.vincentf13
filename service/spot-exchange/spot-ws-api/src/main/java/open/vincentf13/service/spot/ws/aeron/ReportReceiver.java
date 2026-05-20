@@ -47,12 +47,40 @@ public class ReportReceiver extends Worker {
     // 預分配批次陣列：×2 因為 batch match 每個 fragment 拆成 taker+maker 兩筆 report
     private final Channel[] batchChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
     private final ByteBuf[] batchBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2];
+    private final long[] batchEntryNs = new long[AeronConstants.AERON_POLL_LIMIT * 2]; // per-report entry ts，用於 fan-out 量測
     private int batchCount = 0;
+
+    // ===== fan-out 量測：預配 FanoutSlot 池，避免 lambda / long[] 每批分配 =====
+    // ChannelFuture listener 在 channel EventLoop 觸發；ReportReceiver 寫 → addListener 提供 happens-before
+    // ring size 設大於最大 in-flight (每 channel 約 < 10 個未完 future)，4 channel × 10 = 40 → 256 安全
+    private static final int FANOUT_RING_MASK = 0xFF; // 256 slots
+    private final FanoutSlot[] fanoutRing = new FanoutSlot[FANOUT_RING_MASK + 1];
+    private int fanoutRingIdx = 0;
+
+    {
+        for (int i = 0; i < fanoutRing.length; i++) fanoutRing[i] = new FanoutSlot();
+    }
+
+    /** 預配 listener 物件，addListener 不分配 lambda；operationComplete 不分配陣列 */
+    private static final class FanoutSlot implements io.netty.util.concurrent.GenericFutureListener<io.netty.channel.ChannelFuture> {
+        final long[] tsArray = new long[AeronConstants.AERON_POLL_LIMIT * 2];
+        int count = 0;
+        @Override public void operationComplete(io.netty.channel.ChannelFuture future) {
+            long completeNs = System.nanoTime();
+            int n = count;
+            long[] ts = tsArray;
+            for (int i = 0; i < n; i++) {
+                StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_FANOUT, completeNs - ts[i]);
+            }
+            count = 0;
+        }
+    }
 
     // 多 Channel 分組用預分配結構（零分配 GC 友善）
     private final Channel[] uniqueChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
     private final int[] channelCounts = new int[AeronConstants.AERON_POLL_LIMIT * 2];
     private final ByteBuf[][] channelBufs = new ByteBuf[AeronConstants.AERON_POLL_LIMIT * 2][AeronConstants.AERON_POLL_LIMIT * 2];
+    private final long[][] channelEntryNs = new long[AeronConstants.AERON_POLL_LIMIT * 2][AeronConstants.AERON_POLL_LIMIT * 2];
 
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron,
                           WsSessionManager sessionManager,
@@ -119,6 +147,7 @@ public class ReportReceiver extends Worker {
     }
 
     private void processOneReport(DirectBuffer buffer, int offset, int length) {
+        long entryNs = System.nanoTime();
         long userId = buffer.getLong(offset + USER_ID_OFFSET, ByteOrder.LITTLE_ENDIAN);
         long matchingSendNs = buffer.getLong(offset + MATCHING_END_NS_OFFSET, ByteOrder.LITTLE_ENDIAN);
         StaticMetricsHolder.addCounter(MetricsKey.REPORT_RECV_COUNT, 1);
@@ -132,10 +161,11 @@ public class ReportReceiver extends Worker {
 
         batchChannels[batchCount] = ch;
         batchBufs[batchCount] = nettyBuf;
+        batchEntryNs[batchCount] = entryNs;
         batchCount++;
 
         if (matchingSendNs > 0) {
-            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_REPORT_DELIVERY, System.nanoTime() - matchingSendNs);
+            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_REPORT_DELIVERY, entryNs - matchingSendNs);
         }
     }
 
@@ -157,7 +187,7 @@ public class ReportReceiver extends Worker {
 
         if (singleChannel) {
             // 合併 reports 到 ByteBuf，按 MAX_FRAME_SIZE 分片發送
-            sendMerged(firstCh, batchBufs, count);
+            sendMerged(firstCh, batchBufs, batchEntryNs, count);
             clearRefs(count);
             return;
         }
@@ -181,14 +211,16 @@ public class ReportReceiver extends Worker {
                 uniqueChannels[idx] = ch;
                 channelCounts[idx] = 0;
             }
-            channelBufs[idx][channelCounts[idx]++] = buf;
+            int slot = channelCounts[idx]++;
+            channelBufs[idx][slot] = buf;
+            channelEntryNs[idx][slot] = batchEntryNs[i];
         }
 
         // 每個 unique channel：直接把該 channel 的 bufs 交給 sendMerged 合併並送出（含 release）
         for (int i = 0; i < uniqueCount; i++) {
             Channel ch = uniqueChannels[i];
             int chCount = channelCounts[i];
-            sendMerged(ch, channelBufs[i], chCount);
+            sendMerged(ch, channelBufs[i], channelEntryNs[i], chCount);
             // 清陣列 slot（sendMerged 已 release buf；這裡只清引用避免持參）
             for (int j = 0; j < chCount; j++) channelBufs[i][j] = null;
             uniqueChannels[i] = null;
@@ -199,17 +231,21 @@ public class ReportReceiver extends Worker {
     /** 合併 bufs 並按 MAX_FRAME_SIZE 分片為多個 WebSocket frame 發送 */
     private static final int MAX_FRAME_SIZE = 60_000; // < 65536 WebSocket default max
 
-    private void sendMerged(Channel ch, ByteBuf[] bufs, int count) {
+    private void sendMerged(Channel ch, ByteBuf[] bufs, long[] entryNs, int count) {
         int totalLen = 0;
         for (int i = 0; i < count; i++) totalLen += bufs[i].readableBytes();
+
+        // 取下一個預配 FanoutSlot，把 entryNs 複製進預配陣列；無分配
+        FanoutSlot slot = fanoutRing[fanoutRingIdx = (fanoutRingIdx + 1) & FANOUT_RING_MASK];
+        System.arraycopy(entryNs, 0, slot.tsArray, 0, count);
+        slot.count = count;
 
         if (totalLen <= MAX_FRAME_SIZE) {
             ByteBuf combined = ALLOC.directBuffer(totalLen);
             for (int i = 0; i < count; i++) { combined.writeBytes(bufs[i]); bufs[i].release(); }
-            // writeAndFlush 自動偵測 isInEventLoop，不在則 schedule，避免我們手 lambda 多一次分配
-            ch.writeAndFlush(new BinaryWebSocketFrame(combined));
+            ch.writeAndFlush(new BinaryWebSocketFrame(combined)).addListener(slot);
         } else {
-            // 分片：每個 frame 不超過 MAX_FRAME_SIZE，逐一 write，最後 flush
+            // 分片：每個 frame 不超過 MAX_FRAME_SIZE，逐一 write，最後一片 flush 並附 listener
             ByteBuf current = ALLOC.directBuffer(MAX_FRAME_SIZE);
             for (int i = 0; i < count; i++) {
                 int reportLen = bufs[i].readableBytes();
@@ -220,9 +256,13 @@ public class ReportReceiver extends Worker {
                 current.writeBytes(bufs[i]);
                 bufs[i].release();
             }
-            if (current.readableBytes() > 0) ch.write(new BinaryWebSocketFrame(current));
-            else current.release();
-            ch.flush();
+            if (current.readableBytes() > 0) {
+                ch.writeAndFlush(new BinaryWebSocketFrame(current)).addListener(slot);
+            } else {
+                current.release();
+                ch.flush();
+                slot.count = 0; // 沒實際發送，跳過量測
+            }
         }
     }
 

@@ -275,6 +275,7 @@ public class TestVerificationController {
                 case (int) MetricsKey.LATENCY_SENDER_ENCODE -> "sender_encode";
                 case (int) MetricsKey.LATENCY_CONTROL_POLL -> "control_poll";
                 case (int) MetricsKey.LATENCY_GATEWAY_TOTAL -> "gateway_total";
+                case (int) MetricsKey.LATENCY_FANOUT -> "fanout";
                 default -> null;
             };
             if (label != null) {
@@ -296,6 +297,7 @@ public class TestVerificationController {
             addLatencyPercentiles(map, "sender_encode", entry.getValue().get("sender_encode"));
             addLatencyPercentiles(map, "control_poll", entry.getValue().get("control_poll"));
             addLatencyPercentiles(map, "gateway_total", entry.getValue().get("gateway_total"));
+            addLatencyPercentiles(map, "fanout", entry.getValue().get("fanout"));
             result.add(map);
         }
         return result;

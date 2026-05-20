@@ -138,6 +138,7 @@ public class Constants {
         public static final long LATENCY_SENDER_ENCODE = 15L;   // WalSender poll → Aeron commit (SBE 編碼 + 發送)
         public static final long LATENCY_CONTROL_POLL = 16L;  // controlSub.poll() 耗時
         public static final long LATENCY_GATEWAY_TOTAL = 17L; // gwTimeNs → Aeron commit (Gateway 全程)
+        public static final long LATENCY_FANOUT = 19L;        // ReportReceiver.processOneReport entry → channel.writeAndFlush future complete (server 出口最後一行)
 
         // 分位數指標 (Percentiles) - 這些用於 Chronicle Map 編碼，不直接作為 Micrometer Key
         public static final long P50 = 50L;
