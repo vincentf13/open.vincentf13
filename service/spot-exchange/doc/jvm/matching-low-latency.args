@@ -43,8 +43,8 @@
 
 # --- 記憶體配置 (2GB Heap + 1GB Direct) ---
 # 經過實測，2GB Heap 能提供足夠的 Headroom 讓 ZGC 穩定運作而不會產生延遲突波。
--Xms2G
--Xmx2G
+-Xms4G
+-Xmx4G
 -Xlog:gc+init
 -Xlog:pagesize
 -XX:MaxDirectMemorySize=1G
