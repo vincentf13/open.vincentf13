@@ -50,32 +50,6 @@ public class ReportReceiver extends Worker {
     private final long[] batchEntryNs = new long[AeronConstants.AERON_POLL_LIMIT * 2]; // per-report entry ts，用於 fan-out 量測
     private int batchCount = 0;
 
-    // ===== fan-out 量測：預配 FanoutSlot 池，避免 lambda / long[] 每批分配 =====
-    // ChannelFuture listener 在 channel EventLoop 觸發；ReportReceiver 寫 → addListener 提供 happens-before
-    // ring size 設大於最大 in-flight (每 channel 約 < 10 個未完 future)，4 channel × 10 = 40 → 256 安全
-    private static final int FANOUT_RING_MASK = 0xFF; // 256 slots
-    private final FanoutSlot[] fanoutRing = new FanoutSlot[FANOUT_RING_MASK + 1];
-    private int fanoutRingIdx = 0;
-
-    {
-        for (int i = 0; i < fanoutRing.length; i++) fanoutRing[i] = new FanoutSlot();
-    }
-
-    /** 預配 listener 物件，addListener 不分配 lambda；operationComplete 不分配陣列 */
-    private static final class FanoutSlot implements io.netty.util.concurrent.GenericFutureListener<io.netty.channel.ChannelFuture> {
-        final long[] tsArray = new long[AeronConstants.AERON_POLL_LIMIT * 2];
-        int count = 0;
-        @Override public void operationComplete(io.netty.channel.ChannelFuture future) {
-            long completeNs = System.nanoTime();
-            int n = count;
-            long[] ts = tsArray;
-            for (int i = 0; i < n; i++) {
-                StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_FANOUT, completeNs - ts[i]);
-            }
-            count = 0;
-        }
-    }
-
     // 多 Channel 分組用預分配結構（零分配 GC 友善）
     private final Channel[] uniqueChannels = new Channel[AeronConstants.AERON_POLL_LIMIT * 2];
     private final int[] channelCounts = new int[AeronConstants.AERON_POLL_LIMIT * 2];
@@ -235,17 +209,16 @@ public class ReportReceiver extends Worker {
         int totalLen = 0;
         for (int i = 0; i < count; i++) totalLen += bufs[i].readableBytes();
 
-        // 取下一個預配 FanoutSlot，把 entryNs 複製進預配陣列；無分配
-        FanoutSlot slot = fanoutRing[fanoutRingIdx = (fanoutRingIdx + 1) & FANOUT_RING_MASK];
-        System.arraycopy(entryNs, 0, slot.tsArray, 0, count);
-        slot.count = count;
-
         if (totalLen <= MAX_FRAME_SIZE) {
             ByteBuf combined = ALLOC.directBuffer(totalLen);
             for (int i = 0; i < count; i++) { combined.writeBytes(bufs[i]); bufs[i].release(); }
-            ch.writeAndFlush(new BinaryWebSocketFrame(combined)).addListener(slot);
+            BinaryWebSocketFrame frame = new BinaryWebSocketFrame(combined);
+            // fan-out 量測：到 writeAndFlush 前一刻為止（不含跨 EventLoop schedule + socket write）
+            long now = System.nanoTime();
+            for (int i = 0; i < count; i++) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_FANOUT, now - entryNs[i]);
+            ch.writeAndFlush(frame);
         } else {
-            // 分片：每個 frame 不超過 MAX_FRAME_SIZE，逐一 write，最後一片 flush 並附 listener
+            // 分片：每個 frame 不超過 MAX_FRAME_SIZE，逐一 write，最後一片 flush
             ByteBuf current = ALLOC.directBuffer(MAX_FRAME_SIZE);
             for (int i = 0; i < count; i++) {
                 int reportLen = bufs[i].readableBytes();
@@ -256,13 +229,10 @@ public class ReportReceiver extends Worker {
                 current.writeBytes(bufs[i]);
                 bufs[i].release();
             }
-            if (current.readableBytes() > 0) {
-                ch.writeAndFlush(new BinaryWebSocketFrame(current)).addListener(slot);
-            } else {
-                current.release();
-                ch.flush();
-                slot.count = 0; // 沒實際發送，跳過量測
-            }
+            long now = System.nanoTime();
+            for (int i = 0; i < count; i++) StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_FANOUT, now - entryNs[i]);
+            if (current.readableBytes() > 0) ch.writeAndFlush(new BinaryWebSocketFrame(current));
+            else { current.release(); ch.flush(); }
         }
     }
 
