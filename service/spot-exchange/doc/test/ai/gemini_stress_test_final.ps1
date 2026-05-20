@@ -265,8 +265,10 @@ try {
         $matching_args_file = "$log_path\matching-diagnose.args"
         (Get-Content "$doc_path\jvm\matching-low-latency.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $matching_args_file
     }
+    $matching_jfr_args = if ($Diagnose) { @("-XX:FlightRecorderOptions=stackdepth=64") } else { @() }
     $matching_args = @(
-        "@$matching_args_file",
+        "@$matching_args_file"
+    ) + $matching_jfr_args + @(
         "-Dspot.affinity.cores=13",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -316,6 +318,29 @@ try {
         catch { } # 靜默失敗
     }
 
+    # --- [Diagnose] JFR allocation profiling on matching (measure phase only) ---
+    if ($Diagnose) {
+        # 必須用與 target JVM 同版本的 jcmd / jps（matching 跑 JDK 23）。
+        # 也必須用 jps 找真實 PID — Start-Process java 拿到的是 launcher PID，真 JVM 是子進程。
+        $jcmdPath = "C:\Program Files\Java\jdk-23\bin\jcmd.exe"
+        $jpsPath  = "C:\Program Files\Java\jdk-23\bin\jps.exe"
+        $jfrJob = Start-Job -ScriptBlock {
+            param($jcmdExe, $jpsExe, $jfrFile, $debugLog)
+            Start-Sleep -Seconds 45  # 等 warmup 結束 → 進入 measure
+            $matchingPid = (& $jpsExe -l | Select-String "MatchingApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
+            "[$(Get-Date -Format HH:mm:ss)] Resolved matching PID via jps: $matchingPid" | Out-File $debugLog -Append
+            if (-not $matchingPid) { "no matching PID found" | Out-File $debugLog -Append; return }
+            "[$(Get-Date -Format HH:mm:ss)] JFR.start..." | Out-File $debugLog -Append
+            $startOut = & $jcmdExe $matchingPid JFR.start name=alloc settings=profile 2>&1
+            $startOut | Out-File $debugLog -Append
+            Start-Sleep -Seconds 22  # measure 20s + 2s buffer
+            "[$(Get-Date -Format HH:mm:ss)] JFR.stop..." | Out-File $debugLog -Append
+            $stopOut = & $jcmdExe $matchingPid JFR.stop name=alloc filename=$jfrFile 2>&1
+            $stopOut | Out-File $debugLog -Append
+        } -ArgumentList $jcmdPath, $jpsPath, "$log_path\matching-alloc.jfr", "$log_path\jfr_debug.log"
+        Write-Host ">>> [Diagnose] JFR alloc profile 已排程 (jcmd: $jcmdPath)"
+    }
+
     # --- [Diagnose] 背景中斷監控 (僅 -Diagnose 模式，避免影響延遲) ---
     if ($Diagnose) {
         Write-Host ">>> [Diagnose] 啟用 OS 監控 (Interrupt, DPC, Privileged, Context Switches)..."
@@ -346,6 +371,7 @@ try {
     # --- 清理背景 Jobs ---
     if ($resetJob) { Wait-Job $resetJob -Timeout 5; Remove-Job $resetJob -ErrorAction SilentlyContinue }
     if ($monitorTask) { Stop-Job $monitorTask; Remove-Job $monitorTask }
+    if ($jfrJob) { Wait-Job $jfrJob -Timeout 30; Receive-Job $jfrJob | Out-String | Out-File "$log_path\jfr_debug.log" -Append; Remove-Job $jfrJob -ErrorAction SilentlyContinue }
 
     # --- 7. 抓取內部指標 (每次都做，Gateway 還活著) ---
     Write-Host "正在抓取內部指標..."
@@ -362,16 +388,19 @@ try {
     # --- 8. 抓取診斷數據 (僅 -Diagnose 模式) ---
     if ($Diagnose) {
         Write-Host "正在抓取 heap histogram (gw + matching)..."
+        # 必須與 target JVM (JDK 23) 同版本，default PATH 的 jps/jcmd 是 JDK 21 會 attach 失敗
+        $jcmd23 = "C:\Program Files\Java\jdk-23\bin\jcmd.exe"
+        $jps23  = "C:\Program Files\Java\jdk-23\bin\jps.exe"
         try {
-            $jpsOutput = jps -l
+            $jpsOutput = & $jps23 -l
             $gwPid = ($jpsOutput | Select-String "WsApiApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
             $matchingPid = ($jpsOutput | Select-String "MatchingApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
             if ($gwPid) {
-                jcmd $gwPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
+                & $jcmd23 $gwPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
                 Write-Host "Heap histogram (gw, PID: $gwPid) -> heap_gw_measure.log"
             }
             if ($matchingPid) {
-                jcmd $matchingPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_matching_measure.log"
+                & $jcmd23 $matchingPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_matching_measure.log"
                 Write-Host "Heap histogram (matching, PID: $matchingPid) -> heap_matching_measure.log"
             }
         } catch {
