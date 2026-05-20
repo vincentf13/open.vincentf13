@@ -244,10 +244,9 @@ try {
         (Get-Content "$doc_path\jvm\ws-api-throughput.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $gw_args_file
         $gw_diagnose_flags = @("-Dspot.diagnose=true")
     }
-    $gw_gc_log = if ($Diagnose) { @("-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags") } else { @() }
     $gw_args = @(
         "@$gw_args_file"
-    ) + $gw_diagnose_flags + $gw_gc_log + @(
+    ) + $gw_diagnose_flags + @(
         "-Dspot.affinity.cores=1,10,5,2,3,4",
         "-Dspot.wal.bypass=false",
         "-Daeron.driver.enabled=false",
@@ -266,10 +265,8 @@ try {
         $matching_args_file = "$log_path\matching-diagnose.args"
         (Get-Content "$doc_path\jvm\matching-low-latency.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $matching_args_file
     }
-    $matching_gc_log = if ($Diagnose) { @("-Xlog:gc*,gc+heap=info,gc+phases=info:file=$log_path\gc_matching.log:time,uptime,level,tags") } else { @() }
     $matching_args = @(
-        "@$matching_args_file"
-    ) + $matching_gc_log + @(
+        "@$matching_args_file",
         "-Dspot.affinity.cores=13",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
