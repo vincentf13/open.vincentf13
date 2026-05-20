@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class OrderProcessor implements OrderBook.TradeFinalizer {
 
     private final ChronicleMap<LongValue, Order> orders = Storage.self().orders();
-    private final ChronicleMap<LongValue, Boolean> activeOrdersDiskMap = Storage.self().activeOrders();
+    private final ChronicleMap<LongValue, LongValue> activeOrdersDiskMap = Storage.self().activeOrders();
 
     private final Ledger ledger;
     private final ExecutionReporter reporter;
@@ -62,7 +62,7 @@ public class OrderProcessor implements OrderBook.TradeFinalizer {
                 idempotencyGuard.record(order.getUserId(), order.getClientOrderId(), order.getOrderId());
             }
             if (!order.isTerminal()) {
-                activeOrdersDiskMap.put(new LongValue(order.getOrderId()), Boolean.TRUE);
+                activeOrdersDiskMap.put(new LongValue(order.getOrderId()), new LongValue(1L)); // recovery 路徑非 hot path，這裡仍 new 是 OK
                 OrderBook.get(order.getSymbolId()).recoverOrder(order);
             }
         });

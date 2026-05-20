@@ -67,7 +67,9 @@ public class OrderBook {
 
     // 磁碟映射
     private final ChronicleMap<LongValue, Order> ordersDisk = Storage.self().orders();
-    private final ChronicleMap<LongValue, Boolean> activeDisk = Storage.self().activeOrders();
+    private final ChronicleMap<LongValue, LongValue> activeDisk = Storage.self().activeOrders();
+    /** 預配「永遠是 1」的 LongValue，每個 active put 共用 — 不分配。我們只關心 key 存在與否。 */
+    private final LongValue ACTIVE_MARK_VALUE = new LongValue(1L);
     private final ChronicleMap<LongValue, Trade> tradesDisk = Storage.self().trades();
 
     // 批次寫入緩衝（雙緩衝：matching 寫 active，flusher 讀 draining，改為 List 消除 Hash Cache Miss）
@@ -225,7 +227,8 @@ public class OrderBook {
         }
         level.addLast(order);
         orderIndex.put(order.getOrderId(), order);
-        userOrdersIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(16)).add(order.getOrderId());
+        // 容量 64：active orders / user 多半 < 50，避免從 16 起 resize 觸發內部 long[] 重新分配
+        userOrdersIndex.computeIfAbsent(order.getUserId(), k -> new LongHashSet(64)).add(order.getOrderId());
     }
 
     private void removeFromLevel(Order o) {
@@ -241,7 +244,8 @@ public class OrderBook {
         syncOrder(o, gwSeq);
         orderIndex.remove(o.getOrderId());
         LongHashSet set = userOrdersIndex.get(o.getUserId());
-        if (set != null) { set.remove(o.getOrderId()); if (set.isEmpty()) userOrdersIndex.remove(o.getUserId()); }
+        if (set != null) set.remove(o.getOrderId());
+        // 不移除空 set — 移除後下次 add 又會 new LongHashSet 觸發 alloc，留著 reuse 即可
         // 池回收：由呼叫端在讀完 `o` 後執行 MatchingPool.releaseOrder(o)，
         // 避免 cancel 路徑中 caller 繼續讀取已回池物件的風險。
     }
@@ -331,7 +335,7 @@ public class OrderBook {
         if (!dAdd.isEmpty()) {
             for (int i = 0, size = dAdd.size(); i < size; i++) {
                 fkA.set(dAdd.getLong(i));
-                activeDisk.put(fkA, Boolean.TRUE);
+                ChronicleMapUtil.putNoRead(activeDisk, fkA, ACTIVE_MARK_VALUE);
             }
             dAdd.clear();
         }

@@ -32,7 +32,9 @@ public class Storage {
     private final ChronicleMap<LongValue, Trade> trades;
     private final ChronicleMap<BalanceKey, Balance> balances;
     private final ChronicleMap<LongValue, LongValue> userAssets;
-    private final ChronicleMap<LongValue, Boolean> activeOrders;
+    // value 用 LongValue 而非 Boolean — Boolean 不是 BytesMarshallable，
+    // ChronicleMap.put 會 fallback Java Serialization 每次 alloc ObjectOutputStream + byte[]
+    private final ChronicleMap<LongValue, LongValue> activeOrders;
     private final ChronicleMap<CidKey, LongValue> cids;
     private final ChronicleMap<Byte, MsgProgress> msgMetadata;
     private final ChronicleMap<Byte, WalProgress> walMetadata;
@@ -53,7 +55,7 @@ public class Storage {
             this.trades = createMap(ChronicleMapEnum.TRADES, LongValue.class, Trade.class, 5_000_000, 64);
             this.balances = createMap(ChronicleMapEnum.BALANCES, BalanceKey.class, Balance.class, 5_000_000, 16, 64);
             this.userAssets = createMap(ChronicleMapEnum.USER_ASSETS, LongValue.class, LongValue.class, 500_000, 8);
-            this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, Boolean.class, 5_000_000, 1);
+            this.activeOrders = createMap(ChronicleMapEnum.ACTIVE_ORDERS, LongValue.class, LongValue.class, 5_000_000, 8);
             this.cids = createMap(ChronicleMapEnum.CIDS, CidKey.class, LongValue.class, 5_000_000, 16, 8);
             this.msgMetadata = createMap("msg-" + ChronicleMapEnum.METADATA, Byte.class, MsgProgress.class, 10, 32);
             this.walMetadata = createMap("wal-" + ChronicleMapEnum.METADATA, Byte.class, WalProgress.class, 10, 32);
@@ -81,7 +83,7 @@ public class Storage {
     public ChronicleMap<LongValue, Trade> trades() { return trades; }
     public ChronicleMap<BalanceKey, Balance> balances() { return balances; }
     public ChronicleMap<LongValue, LongValue> userAssets() { return userAssets; }
-    public ChronicleMap<LongValue, Boolean> activeOrders() { return activeOrders; }
+    public ChronicleMap<LongValue, LongValue> activeOrders() { return activeOrders; }
     public ChronicleMap<CidKey, LongValue> clientOrderIdMap() { return cids; }
     public ChronicleMap<Byte, MsgProgress> msgProgressMetadata() { return msgMetadata; }
     public ChronicleMap<Byte, WalProgress> walMetadata() { return walMetadata; }
