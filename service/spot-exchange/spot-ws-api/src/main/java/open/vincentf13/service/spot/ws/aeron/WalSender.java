@@ -117,6 +117,8 @@ public class WalSender extends GatewaySender {
         if (walIndex >= 0) {
             sendFromEvent(event, walIndex);
             StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+            // 常駐量測 gateway 內部全程（Netty entry → Aeron commit done），含 WAL fsync
+            StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_GATEWAY_TOTAL, System.nanoTime() - event.arrivalTimeNs);
             if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         }
         pollCount++;

@@ -8,7 +8,7 @@ public class AeronConstants {
     /** 指標統計批次大小 */
     public static final int METRICS_BATCH_SIZE = 5000;
 
-    /** Aeron 訂閱輪詢限制 */
+    /** Aeron 訂閱輪詢限制（實測 1024 比 64 穩定，後者反而引入更多 syscall overhead） */
     public static final int AERON_POLL_LIMIT = 1024;
 
     /** RESUME 握手信號的總長度 */

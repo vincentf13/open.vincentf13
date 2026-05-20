@@ -153,6 +153,8 @@ public class GatewaySender extends Worker {
         long pollTimeNs = DIAGNOSE ? System.nanoTime() : 0;
         sendFromEvent(event, ++bypassSeq);
         StaticMetricsHolder.addCounter(MetricsKey.AERON_SEND_COUNT, 1);
+        // 常駐量測 gateway 內部全程（Netty entry → Aeron commit done），對應 transport - aeron_propagate
+        StaticMetricsHolder.recordLatency(MetricsKey.LATENCY_GATEWAY_TOTAL, System.nanoTime() - event.arrivalTimeNs);
         if (DIAGNOSE) recordTransportSubLatencies(event, pollTimeNs, System.nanoTime());
         pollCount++;
         return true;
