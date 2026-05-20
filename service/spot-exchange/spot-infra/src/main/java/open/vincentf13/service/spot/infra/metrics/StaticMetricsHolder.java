@@ -79,6 +79,7 @@ public class StaticMetricsHolder {
         private static final int CAPACITY = 1 << 16; // 65536
         private static final int MASK = CAPACITY - 1;
         private final long[] ring = new long[CAPACITY];
+        private final long[] reusableSnapshot = new long[CAPACITY]; // 預配 snapshot 緩衝，避免每秒 new long[]
         private volatile int writePos = 0;
         private int snapshotPos = 0; // 僅 snapshot 線程寫入
 
@@ -97,24 +98,25 @@ public class StaticMetricsHolder {
                 count = CAPACITY;
             }
 
-            long[] copy = new long[count];
+            // 重用預配 buffer；只排序與訪問 [0, count) 範圍，避免每秒 new long[]
+            long[] copy = reusableSnapshot;
             for (int i = 0; i < count; i++) {
                 copy[i] = ring[(snapshotPos + i) & MASK];
             }
             snapshotPos = wp;
 
-            Arrays.sort(copy);
+            Arrays.sort(copy, 0, count);
             return new LatencySnapshot(
-                    percentile(copy, 0.50d),
-                    percentile(copy, 0.90d),
-                    percentile(copy, 0.99d),
-                    percentile(copy, 0.999d),
-                    copy[copy.length - 1]);
+                    percentile(copy, count, 0.50d),
+                    percentile(copy, count, 0.90d),
+                    percentile(copy, count, 0.99d),
+                    percentile(copy, count, 0.999d),
+                    copy[count - 1]);
         }
 
-        private static long percentile(long[] sorted, double ratio) {
-            int index = (int) Math.ceil(sorted.length * ratio) - 1;
-            return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
+        private static long percentile(long[] sorted, int len, double ratio) {
+            int index = (int) Math.ceil(len * ratio) - 1;
+            return sorted[Math.max(0, Math.min(index, len - 1))];
         }
     }
 }
