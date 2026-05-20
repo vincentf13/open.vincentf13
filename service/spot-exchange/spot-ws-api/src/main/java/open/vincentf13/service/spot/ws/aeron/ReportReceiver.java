@@ -57,7 +57,7 @@ public class ReportReceiver extends Worker {
     public ReportReceiver(@SuppressWarnings("unused") Aeron aeron,
                           WsSessionManager sessionManager,
                           @SuppressWarnings("unused") GatewaySender gatewaySender) {
-        super("report-receiver",
+        super("gateway-receiver",
               MetricsKey.CPU_ID_REPORT_RECEIVER, MetricsKey.CPU_ID_CURRENT_REPORT_RECEIVER,
               MetricsKey.GATEWAY_REPORT_RECEIVER_DUTY_CYCLE);
         // gatewaySender 注入只是為了強制 @PostConstruct 順序：

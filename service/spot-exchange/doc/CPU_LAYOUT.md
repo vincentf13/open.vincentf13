@@ -46,13 +46,13 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 | **P1** | P | gateway gateway-sender (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
 | **E2** | E cluster1 | gateway 背景 / GC / JIT | 進程 mask 內漂移 | 低 |
 | **E3** | E cluster1 | gateway 背景 / GC / JIT | 同上 | 低 |
-| **E4** | E cluster1 | driver Aeron sender (Backoff idle) | `aeron.sender.affinity=4` | ~0%（IPC 無 UDP 工作） |
-| **E5** | E cluster1 | driver Aeron receiver (Backoff idle) | `aeron.receiver.affinity=5` | ~0% |
+| **E4** | E cluster1 | driver Aeron sender (Backoff idle, 不 pin) | driver mask 內漂 | ~0%（IPC 無 UDP 工作） |
+| **E5** | E cluster1 | driver Aeron receiver (Backoff idle, 不 pin) | driver mask 內漂 | ~0% |
 | **E6** | E cluster2 | **benchmark 獨享** | benchmark process mask | busy-spin (benchmark main + NIO) |
 | **E7** | E cluster2 | benchmark 獨享 | 同上 | busy-spin |
 | **E8** | E cluster2 | benchmark 獨享 | 同上 | busy-spin |
 | **E9** | E cluster2 | benchmark 獨享 | 同上 | busy-spin |
-| **P10** | P | gateway report-receiver (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
+| **P10** | P | gateway gateway-receiver (Worker, busy-spin) | `spot.affinity.cores` | 100% busy-spin |
 | **P11** | P | driver Aeron conductor (BusySpin idle) | `aeron.conductor.affinity=11` | 100% busy-spin |
 | **P12** | P | gateway netty worker (Worker pool, pinned) | `spot.affinity.cores=1,10,12` | event-loop |
 | **P13** | P | matching MatchingReceiver (Worker, busy-spin) | `spot.affinity.cores=13` (matching process) | 100% busy-spin |
@@ -77,8 +77,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 -Daeron.sender.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy
 -Daeron.receiver.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy
 -Daeron.conductor.affinity=11
--Daeron.sender.affinity=4
--Daeron.receiver.affinity=5
+# sender/receiver 在 IPC-only Backoff 下幾乎不工作，不 pin，driver mask 內漂
 -Daeron.term.buffer.length=64m
 -Daeron.ipc.term.buffer.length=256m
 ```
@@ -110,7 +109,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 6 個 P-core 分配給：
 1. `matching MatchingReceiver`（P13）— 撮合熱路徑
 2. `gateway gateway-sender`（P1）— Netty → Aeron 熱路徑
-3. `gateway report-receiver`（P10）— Aeron → Netty 回路徑
+3. `gateway gateway-receiver`（P10）— Aeron → Netty 回路徑
 4. `driver Aeron conductor`（P11）— Aeron 位點計數器
 5. `gateway netty worker`（P12）— 部分 netty worker pinned
 6. **P0 完全不用**（OS DPC 核心，會吃延遲）
@@ -135,7 +134,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 ### 坑 1：Script 原本假設 P-core = `{0-5}`
 **症狀**：壓測延遲尾巴一直壓不下去，`transport p99` 穩定 225μs。
 
-**原因**：Ultra 9 285H 的 P-core 分佈是 `{0, 1, 10, 11, 12, 13}`，不是 `{0-5}`。script 註解寫「P-core 0-5」是從 Meteor Lake / Alder Lake 的假設照抄來的，**Arrow Lake-H 的 P/E/LP-E 分佈不同**。實測前 gateway 的 report-receiver、netty workers、driver conductor、Aeron sender/receiver 全部跑在 E-core 上。
+**原因**：Ultra 9 285H 的 P-core 分佈是 `{0, 1, 10, 11, 12, 13}`，不是 `{0-5}`。script 註解寫「P-core 0-5」是從 Meteor Lake / Alder Lake 的假設照抄來的，**Arrow Lake-H 的 P/E/LP-E 分佈不同**。實測前 gateway 的 gateway-receiver、netty workers、driver conductor、Aeron sender/receiver 全部跑在 E-core 上。
 
 **修復**：用 `coreinfo -l` 實測後重新分配。詳見 commit `c1b949ea`。
 
@@ -149,7 +148,7 @@ Windows 預設將 **ISR / DPC 主要路由到 core 0**。即使執行緒是 `Rea
 ### 坑 3：Netty workers 沒透過 AffinityUtil pinned
 **症狀**：就算 matching 離開 P0，benchmark RTT 改善有限。
 
-**原因**：gateway `spot.affinity.cores=1,10` 只給 2 個 core，被 gateway-sender 和 report-receiver 鎖光。netty workers 呼叫 `AffinityUtil.acquireAndBind()` 時 pool 已空，**fall back 到「自由調度」** → 在 gateway process mask 內漂移，容易落到 P0（還在 mask 內）或 E-core。
+**原因**：gateway `spot.affinity.cores=1,10` 只給 2 個 core，被 gateway-sender 和 gateway-receiver 鎖光。netty workers 呼叫 `AffinityUtil.acquireAndBind()` 時 pool 已空，**fall back 到「自由調度」** → 在 gateway process mask 內漂移，容易落到 P0（還在 mask 內）或 E-core。
 
 **修復**：
 1. gateway process mask 排除 P0

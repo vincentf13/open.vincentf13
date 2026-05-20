@@ -193,9 +193,10 @@ try {
     #   E-core  2, 3, 4, 5            (Skymont cluster 1, 共享 4MB L2, 在 L3)
     #   E-core  6, 7, 8, 9            (Skymont cluster 2, 共享 4MB L2, 在 L3)
     #   LP E-core 14, 15              (Skymont LP, SoC tile, 共享 2MB L2, 不在 L3)
-    # Conductor 管理 publication position counter，影響 tryClaim 尾端延遲，放 P11。
-    # IPC-only 下 sender/receiver 本質上 idle，改 Backoff idle strategy 不 busy-spin 燒核，放 E-cluster1。
-    Write-Host "Starting Standalone Media Driver (P11:conductor, E4:sender backoff, E5:receiver backoff)..."
+    # Conductor 管理 publication position counter，影響 tryClaim 尾端延遲，BusySpin pin P11。
+    # IPC-only 下 sender/receiver 本質 idle (~0% CPU)，已用 Backoff 不燒核；
+    # 不再 pin，讓它們在 driver mask {4,5,14,15} 內漂移，省 affinity slot 與設定。
+    Write-Host "Starting Standalone Media Driver (P11:conductor pinned, sender/receiver drift in E-cluster1+LP)..."
     $aeron_jar_item = Get-ChildItem "$m_dest\dependencies\BOOT-INF\lib\aeron-all-*.jar" | Select-Object -First 1
     $aeron_jar = $aeron_jar_item.FullName
 
@@ -209,8 +210,6 @@ try {
         "-Daeron.sender.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy",
         "-Daeron.receiver.idle.strategy=org.agrona.concurrent.BackoffIdleStrategy",
         "-Daeron.conductor.affinity=11",
-        "-Daeron.sender.affinity=4",
-        "-Daeron.receiver.affinity=5",
         "-Daeron.term.buffer.length=64m",
         "-Daeron.ipc.term.buffer.length=256m",
         "-Daeron.dir=$aeron_dir",
@@ -221,9 +220,9 @@ try {
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
-    Write-Host "Starting Gateway (P1:gateway-sender P10:report-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:MatchingReceiver)..."
+    Write-Host "Starting Gateway (P1:gateway-sender P10:gateway-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:MatchingReceiver)..."
 
-    # Gateway: gateway-sender=P1, report-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
+    # Gateway: gateway-sender=P1, gateway-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
     # 註：P0 完全排除（Windows DPC 噪音核心），所有 Java process 都不使用 P0
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
@@ -244,7 +243,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 54334  # P1 (gateway-sender) + P10 (report-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
+    $g.ProcessorAffinity = 54334  # P1 (gateway-sender) + P10 (gateway-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: MatchingReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
