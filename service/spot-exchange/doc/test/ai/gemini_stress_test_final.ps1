@@ -260,8 +260,15 @@ try {
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: MatchingReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
+    $matching_args_file = "$doc_path\jvm\matching-low-latency.args"
+    if ($Diagnose) {
+        # diagnose 模式：關 PerfDisableSharedMem 讓 jcmd 可 attach matching 進程
+        $matching_args_file = "$log_path\matching-diagnose.args"
+        (Get-Content "$doc_path\jvm\matching-low-latency.args") -replace '^\s*-XX:\+PerfDisableSharedMem', '# -XX:+PerfDisableSharedMem  # disabled for jcmd attach' | Set-Content $matching_args_file
+    }
     $matching_args = @(
-        "@$doc_path\jvm\matching-low-latency.args",
+        "@$matching_args_file",
+        "-Xlog:gc*,gc+heap=info,gc+phases=info:file=$log_path\gc_matching.log:time,uptime,level,tags",
         "-Dspot.affinity.cores=13",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -356,14 +363,18 @@ try {
 
     # --- 8. 抓取診斷數據 (僅 -Diagnose 模式) ---
     if ($Diagnose) {
-        Write-Host "正在抓取 heap histogram..."
+        Write-Host "正在抓取 heap histogram (gw + matching)..."
         try {
-            $gwPid = (jps -l | Select-String "WsApiApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
+            $jpsOutput = jps -l
+            $gwPid = ($jpsOutput | Select-String "WsApiApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
+            $matchingPid = ($jpsOutput | Select-String "MatchingApp" | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
             if ($gwPid) {
                 jcmd $gwPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_gw_measure.log"
-                Write-Host "Heap histogram 已存至 heap_gw_measure.log (PID: $gwPid)"
-            } else {
-                Write-Warning "jps 找不到 WsApiApp 進程"
+                Write-Host "Heap histogram (gw, PID: $gwPid) -> heap_gw_measure.log"
+            }
+            if ($matchingPid) {
+                jcmd $matchingPid GC.class_histogram -all 2>&1 | Select-Object -First 80 | Out-File "$log_path\heap_matching_measure.log"
+                Write-Host "Heap histogram (matching, PID: $matchingPid) -> heap_matching_measure.log"
             }
         } catch {
             Write-Warning "jcmd 失敗: $($_.Exception.Message)"
