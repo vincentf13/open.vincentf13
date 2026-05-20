@@ -31,7 +31,8 @@ import static open.vincentf13.service.spot.infra.Constants.*;
  * RESUME 握手後從 WAL replay 追趕，再切換到 live 模式。
  */
 @Slf4j
-@Component
+// 顯式同名 bean："gatewaySender" 在 bypass / WAL 模式下都存在，NettyServer @DependsOn 可不分模式引用
+@Component("gatewaySender")
 @ConditionalOnProperty(name = "spot.wal.bypass", havingValue = "false", matchIfMissing = true)
 public class WalSender extends GatewaySender {
 

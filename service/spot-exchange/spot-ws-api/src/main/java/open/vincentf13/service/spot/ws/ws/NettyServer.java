@@ -16,6 +16,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import open.vincentf13.service.spot.infra.Constants.MetricsKey;
@@ -29,9 +30,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Netty WebSocket 伺服器
  * 職責：啟動/關閉 Netty、配置 Pipeline、綁定 CPU 親和性。
+ *
+ * @DependsOn 強制這兩個 busy-spin Worker 先 @PostConstruct 完成（含 acquireAndBind 阻塞），
+ * 確保 spot.affinity.cores pool 的前兩個 P-core slot 一定給 gateway-sender / gateway-receiver，
+ * 而不是被本類的 4 個 netty worker thread 搶先。歷史 bug：實測曾發生 gateway-receiver 落到 E2
+ * 而 netty-worker-3 拿到 P10，端到端 p99 從 13ms 飆到 25ms。
  */
 @Slf4j
 @Component
+@DependsOn({"gatewaySender", "reportReceiver"})
 public class NettyServer {
     @Value("${websocket.port:8080}")
     private int port;
@@ -57,6 +64,10 @@ public class NettyServer {
             bossGroup = new NioEventLoopGroup(1, (java.util.concurrent.ThreadFactory) r -> new Thread(r, "netty-boss"));
 
             // workerGroup 處理命令編解碼與業務邏輯，維持核心綁定
+            // chooserFactory：保留 Netty 預設 round-robin（PowerOfTwoEventExecutorChooser 當 N=2^k，否則
+            // GenericEventExecutorChooser），第 1 條連線必落 workerGroup[0]。我們的 affinity pool 第 3 順位
+            // 是 P-core（spot.affinity.cores 第 3 個元素），因此 workerGroup[0] = P-core netty worker。
+            // 這保證「第一條建立的 WebSocket 連線」走最低延遲路徑；後續連線依序 round-robin 到 E-core worker。
             workerGroup = new NioEventLoopGroup(workerCount, AffinityUtil.newThreadFactory("netty-worker",
                     new long[]{MetricsKey.CPU_ID_NETTY_WORKER_1, MetricsKey.CPU_ID_NETTY_WORKER_2,
                                MetricsKey.CPU_ID_NETTY_WORKER_3, MetricsKey.CPU_ID_NETTY_WORKER_4},
@@ -83,6 +94,10 @@ public class NettyServer {
                     .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override protected void initChannel(SocketChannel ch) {
+                            // 紀錄 channel→worker 對應，事後可從 gw stdout 驗證 round-robin 結果
+                            // (channel id 順序對應 connection 建立順序；worker thread name 已包含核心 id)
+                            log.info("[WS] channel {} bound to {}",
+                                    ch.id().asShortText(), Thread.currentThread().getName());
                             ch.pipeline().addLast(new HttpServerCodec());
                             ch.pipeline().addLast(new ChunkedWriteHandler());
                             ch.pipeline().addLast(new HttpObjectAggregator(65536));

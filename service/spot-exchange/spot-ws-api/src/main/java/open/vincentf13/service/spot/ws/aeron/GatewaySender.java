@@ -34,7 +34,8 @@ import static open.vincentf13.service.spot.infra.aeron.AeronUtil.*;
  * 讓 JIT 能完整 inline 整條 doWork → processEvents → sendFromEvent 熱路徑。
  */
 @Slf4j
-@Component
+// 顯式 bean 名稱與 WalSender 對齊，NettyServer @DependsOn("gatewaySender") 在兩種模式都成立
+@Component("gatewaySender")
 @ConditionalOnProperty(name = "spot.wal.bypass", havingValue = "true")
 public class GatewaySender extends Worker {
 

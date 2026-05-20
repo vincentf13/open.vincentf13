@@ -130,6 +130,10 @@ $mmProfilePath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\
 $originalThrottling = (Get-ItemProperty -Path $mmProfilePath -Name "NetworkThrottlingIndex" -ErrorAction SilentlyContinue).NetworkThrottlingIndex
 $originalResponsiveness = (Get-ItemProperty -Path $mmProfilePath -Name "SystemResponsiveness" -ErrorAction SilentlyContinue).SystemResponsiveness
 
+# Windows Search 服務記錄（實測為 P12 DPC 主要噪音源，壓測時暫停，finally 還原）
+$wsearchStatus = (Get-Service WSearch -ErrorAction SilentlyContinue).Status
+$wsearchStartType = (Get-Service WSearch -ErrorAction SilentlyContinue).StartType
+
 # 安全清理函數
 function Safe-Remove($path) {
     if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path) -and $path -like "*open.vincentf13*") {
@@ -151,6 +155,12 @@ try {
     # 關閉網卡干擾屬性
     if ($originalCoalescing) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "Packet Coalescing" -DisplayValue "Disabled" -ErrorAction SilentlyContinue }
     if ($originalMimo) { Set-NetAdapterAdvancedProperty -Name $nicName -DisplayName "MIMO Power Save Mode" -DisplayValue "No SMPS" -ErrorAction SilentlyContinue }
+
+    # 暫停 Windows Search（實測為 P12 DPC 主要噪音源，壓測完 finally 還原）
+    if ($wsearchStatus -eq 'Running') {
+        Write-Host ">>> [OS] 暫停 Windows Search 服務（壓測完還原）..."
+        Stop-Service WSearch -Force -ErrorAction SilentlyContinue
+    }
 
     # 確保日誌目錄存在
     if (!(Test-Path $log_path)) { New-Item -ItemType Directory -Force $log_path }
@@ -216,13 +226,16 @@ try {
         "io.aeron.driver.MediaDriver"
     )
     $driver = Start-Process java -ArgumentList $driver_args -PassThru -WindowStyle Hidden -RedirectStandardOutput "$log_path\stdout_driver.log" -RedirectStandardError "$log_path\error_driver.log"
-    $driver.ProcessorAffinity = 51248  # P11 (conductor busyspin) + E4 (sender backoff) + E5 (receiver backoff) + LP14,15 (背景)
+    $driver.ProcessorAffinity = 51200  # P11 (conductor busyspin) + LP14,15 (sender/receiver drift, Backoff idle); E5 移除讓給 gateway netty[0]，E4 移除避免與 gateway netty[3] 競爭
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
-    Write-Host "Starting Gateway (P1:gateway-sender P10:gateway-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:MatchingReceiver)..."
+    Write-Host "Starting Gateway (P1:gateway-sender P10:gateway-receiver E5:netty[0] E2:netty[1] E3:netty[2] E4:netty[3]) + Matching (P13:MatchingReceiver)..."
 
-    # Gateway: gateway-sender=P1, gateway-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
+    # Gateway: gateway-sender=P1, gateway-receiver=P10, netty[0]=E5, netty[1..3]=E2/E3/E4 (AffinityUtil pool 順序), GC/JIT=E-cluster1+LP14-15
+    # 註：實測 P12 的 DPC avg 1.02% max 7.69%（同 P0 等級），P1 avg 0.12% 是最乾淨 P-core。
+    # 詳見 doc/DPC_BASELINE.md。busy-spin 線程放 P1，netty[0] 放 E5（接受時鐘較低但 DPC 0.14% 乾淨）。
+    # E5 swap 前提：driver/matching mask 已移除 E5，避免跨進程 Aeron / Matching GC drift 干擾 netty[0]。
     # 註：P0 完全排除（Windows DPC 噪音核心），所有 Java process 都不使用 P0
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
@@ -235,7 +248,7 @@ try {
         "@$gw_args_file"
     ) + $gw_diagnose_flags + @(
         "-Xlog:gc*:file=$log_path\gc_gw.log:time,uptime,level,tags",
-        "-Dspot.affinity.cores=1,10,12",
+        "-Dspot.affinity.cores=1,10,5,2,3,4",
         "-Dspot.wal.bypass=false",
         "-Daeron.driver.enabled=false",
         "-Daeron.dir=$aeron_dir",
@@ -243,7 +256,7 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 54334  # P1 (gateway-sender) + P10 (gateway-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
+    $g.ProcessorAffinity = 50238  # P1 (gateway-sender) + P10 (gateway-receiver) + E-cluster1 {2,3,4,5} (netty[0..3] + GC) + LP14,15 (GC); P12 排除讓給 matching GC 獨享；P0 排除避 DPC
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     # Matching Engine: MatchingReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
@@ -256,7 +269,7 @@ try {
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 57404  # P13 (MatchingReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
+    $e.ProcessorAffinity = 61440  # P12 + P13 + LP14,15; P13 pin matching-receiver, P12 給 ZGC concurrent drift (P12 DPC 已被 WSearch 處理), E5 移除完全讓給 gateway netty[0], E2/E3/E4 排除避免干擾 gateway netty[1..3]
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務啟動 (12s)..."
@@ -371,6 +384,12 @@ try {
     # 還原網路限流器
     if ($null -ne $originalThrottling) { Set-ItemProperty -Path $mmProfilePath -Name "NetworkThrottlingIndex" -Value $originalThrottling -ErrorAction SilentlyContinue }
     if ($null -ne $originalResponsiveness) { Set-ItemProperty -Path $mmProfilePath -Name "SystemResponsiveness" -Value $originalResponsiveness -ErrorAction SilentlyContinue }
+
+    # 還原 Windows Search 服務
+    if ($wsearchStatus -eq 'Running' -and (Get-Service WSearch -ErrorAction SilentlyContinue).Status -ne 'Running') {
+        Write-Host ">>> [OS] 還原 Windows Search 服務..."
+        Start-Service WSearch -ErrorAction SilentlyContinue
+    }
 
     # 確保關閉所有啟動的服務
     if ($driver -and !$driver.HasExited) { Stop-Process -Id $driver.Id -Force }
