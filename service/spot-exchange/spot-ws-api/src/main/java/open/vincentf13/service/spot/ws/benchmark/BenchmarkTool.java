@@ -10,14 +10,18 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.*;
+import org.HdrHistogram.ConcurrentHistogram;
 import org.HdrHistogram.Histogram;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * 現貨交易所 E2E 延遲基準測試工具
@@ -34,17 +38,19 @@ public class BenchmarkTool {
     private static final long SCALE = 100_000_000L;
     private static final int SBE_SCHEMA_ID = 1, SBE_VERSION = 1;
 
-    private static final long BUYER_ID = 9998;
-    private static final long SELLER_ID = 9999;
+    // 連線 i 使用 (BUYER_ID_BASE+2i, BUYER_ID_BASE+2i+1)。i=0 時為 (9998, 9999) 與單連線歷史一致。
+    private static final long BUYER_ID_BASE = 9998;
     private static final long DEPOSIT_AMOUNT = 1_000_000_000L * SCALE; // 10 億單位
     private static final int REDEPOSIT_INTERVAL = 100_000; // 每 10 萬筆補充一次
 
     private static int targetRate = 50_000;
     private static int durationSec = 30;
     private static int warmupSec = 5;
+    private static int connections = 1;
 
 
-    private static final Histogram histogram = new Histogram(TimeUnit.SECONDS.toNanos(60), 3);
+    // ConcurrentHistogram：多條 Netty EventLoop 同時 recordValue 安全且 lock-free
+    private static final Histogram histogram = new ConcurrentHistogram(TimeUnit.SECONDS.toNanos(60), 3);
     private static final AtomicLong sentCount = new AtomicLong();
     private static final AtomicLong recvCount = new AtomicLong();
     private static final AtomicLong acceptedCount = new AtomicLong();
@@ -58,75 +64,115 @@ public class BenchmarkTool {
         if (args.length >= 1) targetRate = Integer.parseInt(args[0]);
         if (args.length >= 2) durationSec = Integer.parseInt(args[1]);
         if (args.length >= 3) warmupSec = Integer.parseInt(args[2]);
+        if (args.length >= 4) connections = Math.max(1, Integer.parseInt(args[3]));
 
-        System.out.printf("Benchmark: rate=%d/sec, duration=%ds, warmup=%ds%n", targetRate, durationSec, warmupSec);
-        System.out.printf("Buyer=%d, Seller=%d, redeposit every %d orders%n", BUYER_ID, SELLER_ID, REDEPOSIT_INTERVAL);
+        int ratePerConn = targetRate / connections;
+        System.out.printf("Benchmark: rate=%d/sec, duration=%ds, warmup=%ds, connections=%d (%d/sec each)%n",
+                targetRate, durationSec, warmupSec, connections, ratePerConn);
+        System.out.printf("User pairs: buyer=%d..%d / seller=%d..%d, redeposit every %d orders%n",
+                BUYER_ID_BASE, BUYER_ID_BASE + 2 * (connections - 1),
+                BUYER_ID_BASE + 1, BUYER_ID_BASE + 1 + 2 * (connections - 1), REDEPOSIT_INTERVAL);
 
-        // 單 channel 只需 1 個 NIO worker，靠 PowerShell ProcessorAffinity 做 process-level 限制。
-        // 顯式 thread pin 在 Windows + busy-spin 下會與 QPC / scheduler 互動造成不穩，不主動綁。
-        EventLoopGroup group = new NioEventLoopGroup(1);
-        CountDownLatch connected = new CountDownLatch(1);
+        // 共享 EventLoopGroup：N 條 channel 自動 round-robin 到 N 個 worker thread，
+        // 達成多條 connection 並行 read/decode 與並行 server-side flush。
+        EventLoopGroup group = new NioEventLoopGroup(connections);
+        List<Channel> channels = new ArrayList<>(connections);
 
         try {
             URI uri = new URI(WS_URL);
-            WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
-                    uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders(), 256 * 1024);
 
-            Channel ch = new Bootstrap()
-                    .group(group)
-                    .channel(NioSocketChannel.class)
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    // 開啟 TCP_NODELAY 關閉 Nagle batching 以平滑流量，減少 P99 突波
-                    .handler(new ChannelInitializer<SocketChannel>() {
-                        @Override protected void initChannel(SocketChannel sc) {
-                            sc.pipeline().addLast(
-                                    new HttpClientCodec(),
-                                    new HttpObjectAggregator(8192),
-                                    new ReportHandler(handshaker, connected));
-                        }
-                    })
-                    .connect(uri.getHost(), uri.getPort()).sync().channel();
+            for (int i = 0; i < connections; i++) {
+                CountDownLatch connected = new CountDownLatch(1);
+                final WebSocketClientHandshaker hs = WebSocketClientHandshakerFactory.newHandshaker(
+                        uri, WebSocketVersion.V13, null, true, new DefaultHttpHeaders(), 256 * 1024);
 
-            if (!connected.await(5, TimeUnit.SECONDS)) {
-                System.err.println("WebSocket handshake timeout");
-                return;
+                Channel ch = new Bootstrap()
+                        .group(group)
+                        .channel(NioSocketChannel.class)
+                        .option(ChannelOption.TCP_NODELAY, true)
+                        .handler(new ChannelInitializer<SocketChannel>() {
+                            @Override protected void initChannel(SocketChannel sc) {
+                                sc.pipeline().addLast(
+                                        new HttpClientCodec(),
+                                        new HttpObjectAggregator(8192),
+                                        new ReportHandler(hs, connected));
+                            }
+                        })
+                        .connect(uri.getHost(), uri.getPort()).sync().channel();
+
+                if (!connected.await(5, TimeUnit.SECONDS)) {
+                    System.err.println("WebSocket handshake timeout on conn " + i);
+                    return;
+                }
+                channels.add(ch);
             }
-            System.out.println("Connected to " + WS_URL);
+            System.out.printf("Connected %d ws sessions to %s%n", connections, WS_URL);
 
-            // 1. Auth + Deposit 雙用戶
-            initAccounts(ch);
+            // 1. Auth + Deposit：每條連線一對獨立 user（避免報告 fan-out 衝撞）
+            for (int i = 0; i < connections; i++) {
+                long buyerId = BUYER_ID_BASE + 2L * i;
+                long sellerId = buyerId + 1;
+                initAccounts(channels.get(i), buyerId, sellerId);
+            }
             Thread.sleep(2000);
-            System.out.println("Auth + Deposit done (2 users)");
+            System.out.printf("Auth + Deposit done (%d user pairs)%n", connections);
 
-            // 2. Pre-allocate order buffers (買賣各一，Direct 重用)
-            ByteBuffer buyBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
-            ByteBuffer sellBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
-            initOrderTemplate(buyBuf, BUYER_ID, 1001, 60000L * SCALE, 1000L);
-            initOrderTemplate(sellBuf, SELLER_ID, 1001, 60000L * SCALE, 1000L);
+            // 2. 每連線各自啟 sender thread，獨立 token-bucket 不互相干擾
+            CountDownLatch warmupDone = new CountDownLatch(connections);
+            CountDownLatch measureReady = new CountDownLatch(connections);   // 各 sender 報到
+            CountDownLatch measureGo = new CountDownLatch(1);                // 主執行緒一次釋放
+            CountDownLatch measureDone = new CountDownLatch(connections);
+            long[] sharedStartNs = new long[1];                              // 共享 measure 起跑點
 
-            // 預拷貝到 byte[] 作為 bulk-copy 源，避免每訊息 65 次單 byte 讀寫
-            byte[] buyBytes = new byte[65];
-            byte[] sellBytes = new byte[65];
-            buyBuf.position(0); buyBuf.get(buyBytes);
-            sellBuf.position(0); sellBuf.get(sellBytes);
+            for (int i = 0; i < connections; i++) {
+                final int idx = i;
+                final Channel ch = channels.get(i);
+                final long buyerId = BUYER_ID_BASE + 2L * idx;
+                final long sellerId = buyerId + 1;
 
-            // 3. Warmup：以量測速率執行，讓 JIT/GC 充分暖機，避免速率跳躍觸發
-            //    GC storm 與 JIT 重編譯污染量測結果。
-            System.out.printf("Warmup %ds at %,d/sec...%n", warmupSec, targetRate);
-            sendAtRate(ch, buyBytes, sellBytes, targetRate, warmupSec, false);
+                Thread t = new Thread(() -> {
+                    ByteBuffer buyBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
+                    ByteBuffer sellBuf = ByteBuffer.allocateDirect(65).order(ByteOrder.LITTLE_ENDIAN);
+                    initOrderTemplate(buyBuf, buyerId, 1001, 60000L * SCALE, 1000L, (byte) 0);
+                    initOrderTemplate(sellBuf, sellerId, 1001, 60000L * SCALE, 1000L, (byte) 1);
+                    byte[] buyBytes = new byte[65];
+                    byte[] sellBytes = new byte[65];
+                    buyBuf.position(0); buyBuf.get(buyBytes);
+                    sellBuf.position(0); sellBuf.get(sellBytes);
 
-            // 4. Measure
+                    // Warmup：自己內部 nanoTime 起跑，互不協調沒關係
+                    sendAtRate(ch, buyBytes, sellBytes, ratePerConn, warmupSec, false, buyerId, sellerId, -1L);
+                    warmupDone.countDown();
+
+                    // 報到 + 等待主執行緒對齊起跑時間，杜絕各 sender 起點漂移幾百 μs
+                    measureReady.countDown();
+                    try { measureGo.await(); } catch (InterruptedException ignored) { return; }
+                    sendAtRate(ch, buyBytes, sellBytes, ratePerConn, durationSec, true, buyerId, sellerId, sharedStartNs[0]);
+                    measureDone.countDown();
+                }, "bench-sender-" + idx);
+                t.setDaemon(false);
+                t.start();
+            }
+
+            // 等所有連線完成 warmup → 重置 → 對齊 measure 起跑點
+            warmupDone.await();
+            measureReady.await();
+            System.out.printf("All %d connections warmed up%n", connections);
             histogram.reset();
             sentCount.set(0);
             recvCount.set(0);
             measuring = true;
-            System.out.printf("Measuring %ds at %d/sec...%n", durationSec, targetRate);
-            sendAtRate(ch, buyBytes, sellBytes, targetRate, durationSec, true);
+            System.out.printf("Measuring %ds at %d/sec (%d conns × %d/sec)...%n",
+                    durationSec, targetRate, connections, ratePerConn);
+            // 給 OS 一個 schedule 機會讓所有 sender 都被喚醒到 spin 上，再對齊起跑
+            sharedStartNs[0] = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(5);
+            measureGo.countDown();
+
+            measureDone.await();
             measuring = false;
 
             Thread.sleep(3000);
 
-            // 5. Results
             printResults();
 
         } finally {
@@ -134,43 +180,44 @@ public class BenchmarkTool {
         }
     }
 
-    private static void initAccounts(Channel ch) {
-        // Auth 雙用戶
-        ch.writeAndFlush(frame(encodeAuth(BUYER_ID)));
-        ch.writeAndFlush(frame(encodeAuth(SELLER_ID)));
-        // 充值：買家需要 USDT，賣家需要 BTC
-        ch.writeAndFlush(frame(encodeDeposit(BUYER_ID, 2, DEPOSIT_AMOUNT)));  // USDT
-        ch.writeAndFlush(frame(encodeDeposit(SELLER_ID, 1, DEPOSIT_AMOUNT))); // BTC
+    private static void initAccounts(Channel ch, long buyerId, long sellerId) {
+        ch.writeAndFlush(frame(encodeAuth(buyerId)));
+        ch.writeAndFlush(frame(encodeAuth(sellerId)));
+        ch.writeAndFlush(frame(encodeDeposit(buyerId, 2, DEPOSIT_AMOUNT)));  // USDT
+        ch.writeAndFlush(frame(encodeDeposit(sellerId, 1, DEPOSIT_AMOUNT))); // BTC
     }
 
-    private static void redeposit(Channel ch) {
-        ch.write(frame(encodeDeposit(BUYER_ID, 2, DEPOSIT_AMOUNT)));
-        ch.writeAndFlush(frame(encodeDeposit(SELLER_ID, 1, DEPOSIT_AMOUNT)));
+    private static void redeposit(Channel ch, long buyerId, long sellerId) {
+        ch.write(frame(encodeDeposit(buyerId, 2, DEPOSIT_AMOUNT)));
+        ch.writeAndFlush(frame(encodeDeposit(sellerId, 1, DEPOSIT_AMOUNT)));
     }
 
-    /** 令牌桶恆定速率發送，買賣交替，定期補充餘額 */
+    /** 令牌桶恆定速率發送，買賣交替，定期補充餘額；alignedStartNs<0 表示由本函式自己 nanoTime() 起跑 */
     private static void sendAtRate(Channel ch, byte[] buyBytes, byte[] sellBytes,
-                                   int rate, int seconds, boolean count) {
+                                   int rate, int seconds, boolean count,
+                                   long buyerId, long sellerId, long alignedStartNs) {
         long intervalNs = 1_000_000_000L / rate;
         long total = (long) rate * seconds;
-        long startNs = System.nanoTime();
+        long startNs = alignedStartNs > 0 ? alignedStartNs : System.nanoTime();
+        // 等到對齊的 start 時間（多 sender 同步起跑）
+        if (alignedStartNs > 0) {
+            while (System.nanoTime() < startNs) Thread.onSpinWait();
+        }
         boolean isBuy = true;
         PooledByteBufAllocator alloc = PooledByteBufAllocator.DEFAULT;
 
         for (long i = 0; i < total; i++) {
-            // 定期補充餘額
             if (i > 0 && i % REDEPOSIT_INTERVAL == 0) {
-                redeposit(ch);
+                redeposit(ch, buyerId, sellerId);
             }
 
             long sendNano = System.nanoTime();
             byte[] src = isBuy ? buyBytes : sellBytes;
 
-            // 每條訊息配獨立 ByteBuf（pooled），避免 Netty async send 時底層記憶體被覆蓋
             ByteBuf out = alloc.directBuffer(65, 65);
-            out.writeBytes(src);             // bulk memcpy，一次 JNI 呼叫取代 65 次 writeByte
-            out.setLongLE(20, sendNano);     // timestamp (LITTLE_ENDIAN，SBE 格式)
-            out.setLongLE(57, sendNano);     // clientOrderId = sendNano
+            out.writeBytes(src);
+            out.setLongLE(20, sendNano);
+            out.setLongLE(57, sendNano);
 
             ch.writeAndFlush(new BinaryWebSocketFrame(out));
 
@@ -178,13 +225,20 @@ public class BenchmarkTool {
             isBuy = !isBuy;
 
             long nextNs = startNs + (i + 1) * intervalNs;
+            // 混合等待：剩餘 > 10μs 用 parkNanos 讓 CPU 給 NIO worker（多 sender 場景必要），
+            // 剩餘 ≤ 10μs 用 onSpinWait 保證 token bucket 精度
+            long remaining;
+            while ((remaining = nextNs - System.nanoTime()) > 10_000L) {
+                LockSupport.parkNanos(remaining - 10_000L);
+            }
             while (System.nanoTime() < nextNs) Thread.onSpinWait();
         }
     }
 
     private static void printResults() {
         System.out.println("\n=== Benchmark Results ===");
-        System.out.printf("Sent: %,d | Throughput: %,d orders/sec%n", sentCount.get(), sentCount.get() / Math.max(durationSec, 1));
+        System.out.printf("Sent: %,d | Throughput: %,d orders/sec | Connections: %d%n",
+                sentCount.get(), sentCount.get() / Math.max(durationSec, 1), connections);
         System.out.printf("Reports: accepted=%,d, matched=%,d, rejected=%,d, canceled=%,d, unknown=%,d%n",
                 acceptedCount.get(), matchedCount.get(), rejectedCount.get(), canceledCount.get(), unknownCount.get());
         System.out.printf("Latency samples (measuring phase): %,d (%.1f%% of sent)%n",
@@ -214,7 +268,7 @@ public class BenchmarkTool {
         buf.putShort((short) SBE_VERSION);
     }
 
-    private static void initOrderTemplate(ByteBuffer buf, long userId, int symbolId, long price, long qty) {
+    private static void initOrderTemplate(ByteBuffer buf, long userId, int symbolId, long price, long qty, byte side) {
         buf.clear();
         writeSbeHeader(buf, 100, 45);
         buf.putLong(0L);         // [20] timestamp
@@ -222,7 +276,7 @@ public class BenchmarkTool {
         buf.putInt(symbolId);    // [36]
         buf.putLong(price);      // [40]
         buf.putLong(qty);        // [48]
-        buf.put(userId == BUYER_ID ? (byte) 0 : (byte) 1); // [56] side 固定
+        buf.put(side);           // [56] side (0=BUY, 1=SELL)
         buf.putLong(0L);         // [57] clientOrderId
         buf.flip();
     }

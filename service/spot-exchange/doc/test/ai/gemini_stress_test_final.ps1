@@ -221,9 +221,9 @@ try {
     $driver.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::High
 
     # --- 4. 併行啟動 Gateway + Matching Engine (全熱 Worker 在真 P-core) ---
-    Write-Host "Starting Gateway (P1:bypass-sender P10:report-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:AeronReceiver)..."
+    Write-Host "Starting Gateway (P1:gateway-sender P10:report-receiver P12:netty + E-cluster1:netty漂移) + Matching (P13:MatchingReceiver)..."
 
-    # Gateway: bypass-sender=P1, report-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
+    # Gateway: gateway-sender=P1, report-receiver=P10, netty workers 落 P12 或 E-cluster1，GC/JIT=E-cluster1+LP14-15
     # 註：P0 完全排除（Windows DPC 噪音核心），所有 Java process 都不使用 P0
     $gw_args_file = "$doc_path\jvm\ws-api-throughput.args"
     $gw_diagnose_flags = @()
@@ -244,10 +244,10 @@ try {
         "open.vincentf13.service.spot.ws.WsApiApp"
     )
     $g = Start-Process java -ArgumentList $gw_args -WorkingDirectory $g_dest -RedirectStandardError "$log_path\error_gw.log" -RedirectStandardOutput "$log_path\stdout_gw.log" -PassThru -WindowStyle Hidden
-    $g.ProcessorAffinity = 54334  # P1 (bypass-sender) + P10 (report-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
+    $g.ProcessorAffinity = 54334  # P1 (gateway-sender) + P10 (report-receiver) + P12 (netty_worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC); P0 排除避 DPC
     $g.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
-    # Matching Engine: AeronReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
+    # Matching Engine: MatchingReceiver Worker=P13 (離 P0 避 Windows DPC 噪音), GC/JIT=E-cluster1{2,3,4,5}+LP14,15
     $matching_args = @(
         "@$doc_path\jvm\matching-low-latency.args",
         "-Dspot.affinity.cores=13",
@@ -257,7 +257,7 @@ try {
         "open.vincentf13.service.spot.matching.MatchingApp"
     )
     $e = Start-Process java -ArgumentList $matching_args -WorkingDirectory $m_dest -RedirectStandardError "$log_path\error_matching.log" -RedirectStandardOutput "$log_path\stdout_matching.log" -PassThru -WindowStyle Hidden
-    $e.ProcessorAffinity = 57404  # P13 (AeronReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
+    $e.ProcessorAffinity = 57404  # P13 (MatchingReceiver Worker) + E-cluster1 {2,3,4,5} (GC) + LP14,15 (GC)
     $e.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::RealTime
 
     Write-Host "等待服務啟動 (12s)..."
@@ -282,9 +282,10 @@ try {
         "@$doc_path\jvm\benchmark-low-latency.args",
         "-cp", "application/BOOT-INF/classes;application/BOOT-INF/lib/*;dependencies/BOOT-INF/lib/*;spring-boot-loader/",
         "open.vincentf13.service.spot.ws.benchmark.BenchmarkTool",
-        "60000",   # 6萬 orders/sec
+        "60000",   # 6萬 orders/sec (跨所有連線總和)
         "20",      # 20秒測量
-        "45"       # 45秒預熱 (確保 ZGC Old cycle 在 measure 前觸發穩態)
+        "45",      # 45秒預熱 (確保 ZGC Old cycle 在 measure 前觸發穩態)
+        "4"        # 4 條 WS 連線，每條 15K/sec，分散 per-channel 出口瓶頸
     )
     $bench = Start-Process java -ArgumentList $bench_args -WorkingDirectory $g_dest -PassThru -NoNewWindow -RedirectStandardOutput "$log_path\benchmark_result.log"
     $bench.ProcessorAffinity = 960 # E-cluster2 {6,7,8,9} (benchmark 獨享)
